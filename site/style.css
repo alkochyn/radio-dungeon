@@ -660,3 +660,36 @@ audio { display: none; }
 #precious-btn.active svg { fill: #6fd6a8; }
 #precious-count { color: #6d6d7a; font-variant-numeric: tabular-nums; }
 #precious-btn.active #precious-count { color: #8fc9ad; }
+
+/* --- pressing a control ---------------------------------------------------------
+   Pressing a control seats it into the plate: it sinks a hair, the socket darkens
+   underneath and the rim throws a short ember flare - the way struck metal answers.
+   Last in the file on purpose: it has to win over the cover-photo treatment, which
+   sets a filter on the same buttons at the same specificity. */
+.transport button,
+#radio-btn,
+#precious-btn,
+.like-btn {
+  transition: transform 0.12s ease, filter 0.12s ease, box-shadow 0.12s ease;
+}
+.transport button:active:not(:disabled),
+#precious-btn:active {
+  transform: translateY(1px) scale(0.94);
+  box-shadow: inset 0 2px 7px rgba(0, 0, 0, 0.75);
+  filter: drop-shadow(0 0 6px hsl(24 90% 55% / 0.5));
+}
+/* A heart in a track row has no socket to sink into - it flares instead. */
+.like-btn:active:not(:disabled) { transform: translateY(1px) scale(0.88); }
+.like-btn:active:not(:disabled) svg { filter: drop-shadow(0 0 6px hsl(4 85% 55% / 0.85)); }
+/* The disco button carries a running animation, so its glow is spoken for. It sinks. */
+#radio-btn:active { transform: translateY(2px) scale(0.985); }
+
+/* The press itself stays - it is feedback, not decoration. Only the easing goes. */
+@media (prefers-reduced-motion: reduce) {
+  .transport button,
+  #radio-btn,
+  #precious-btn,
+  .like-btn {
+    transition: none;
+  }
+}
