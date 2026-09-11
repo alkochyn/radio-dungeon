@@ -10,6 +10,13 @@ body {
   margin: 0;
   padding: 0 1.5rem 3rem;
 }
+/* The player and the list share one column: on a wide monitor a progress bar stretched
+   across the whole screen is unusable, and the post text turns into long lines. */
+header,
+main {
+  max-width: 960px;
+  margin-inline: auto;
+}
 header {
   display: flex;
   align-items: center;
@@ -48,7 +55,12 @@ button:disabled { opacity: 0.4; cursor: default; }
 }
 .load-failure-title { color: #ddd; font-size: 1.1rem; margin-bottom: 0.4rem; }
 
+/* Stays in reach while the list scrolls - otherwise pausing or skipping a track means
+   scrolling back to the top of a very long page. */
 .player {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: flex;
   gap: 1rem;
   align-items: center;
@@ -56,6 +68,7 @@ button:disabled { opacity: 0.4; cursor: default; }
   border-radius: 10px;
   padding: 1rem;
   margin-bottom: 1.5rem;
+  box-shadow: 0 10px 20px -12px rgba(0, 0, 0, 0.8);
 }
 #artwork {
   width: 96px;
@@ -261,3 +274,42 @@ audio { width: 100%; }
 .cat-popover label:hover { background: #2f2f3a; }
 
 .empty-hint { color: #888; padding: 2rem 0; text-align: center; }
+
+/* --- narrow screens ------------------------------------------------------------
+   The browser's own audio element drops its progress bar when squeezed, so on a phone
+   the artwork shrinks and the controls get the full width. The player sits at the
+   bottom, where a thumb can reach it, rather than at the top. */
+@media (max-width: 640px) {
+  body { padding: 0 0.75rem 12rem; }
+
+  .player {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 30;
+    align-items: flex-start;
+    gap: 0.75rem;
+    border-radius: 12px 12px 0 0;
+    margin-bottom: 0;
+    padding: 0.75rem;
+    box-shadow: 0 -10px 20px -12px rgba(0, 0, 0, 0.9);
+  }
+
+  #artwork { width: 44px; height: 44px; border-radius: 6px; }
+
+  #now-title,
+  #now-artist {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #now-artist { margin-bottom: 0.35rem; }
+
+  .controls { gap: 0.3rem; }
+  .controls button { padding: 0.45rem 0.55rem; }
+
+  .pagination { flex-wrap: wrap; gap: 0.5rem; }
+  .pagination span { flex-basis: 100%; order: -1; }
+}
