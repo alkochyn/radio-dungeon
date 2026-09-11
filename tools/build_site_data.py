@@ -9,6 +9,11 @@ Requests are kept low by going album-first: every track in one Telegram post cam
 the same album link, so one album page yields stream urls for all of them at once. The
 album url per post is cached in albums.json, so only the first run pays for discovery.
 
+Which posts a run touches is worked out up front rather than by walking the catalogue:
+links that will not outlive the next run are refreshed no matter what, and a budget of
+the next-soonest is refreshed early so that expiry times spread out instead of all
+falling due in the same run. See the planning pass in main().
+
     python tools/build_site_data.py --limit 20     # quick prototype run
     python tools/build_site_data.py                # everything
 """
@@ -41,10 +46,14 @@ CHANNEL = "radio_dungeon"
 DATA_VERSION = 2
 REQUEST_DELAY = float(os.environ.get("BC_REQUEST_DELAY", "1.0"))
 
-# A run only has to touch albums whose links are running out. Links last 24h and the
-# job runs far more often than that, so most runs re-fetch nothing at all - which is
-# what keeps us from hammering bandcamp into rate-limiting us.
-REFRESH_MARGIN = float(os.environ.get("BC_REFRESH_MARGIN_HOURS", "10")) * 3600
+# A link that will not survive until the next run has to be refreshed now, whatever it
+# costs: a dead link is a track that will not play. 8h covers the 6h schedule with slack
+# for a late or skipped run.
+DUE_MARGIN = float(os.environ.get("BC_DUE_MARGIN_HOURS", "8")) * 3600
+# On top of that, each run re-mints this many of the next-soonest albums early. Nothing
+# needs them yet - the point is where their new expiry lands. See the planning pass in
+# main() for why a run that has nothing due should still do work.
+REFRESH_BUDGET = int(os.environ.get("BC_REFRESH_BUDGET", "300"))
 TIMEOUT = 25
 USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -77,6 +86,34 @@ def group_posts(tracks: list[dict]) -> list[dict]:
             order.append(key)
         posts[key]["tracks"].append(t)
     return [posts[k] for k in order]
+
+
+def plan_refresh(soonest_of: dict[str, float], now: float) -> tuple[set[str], int]:
+    """Pick the posts this run refreshes. Returns the set and how many were overdue.
+
+    Bandcamp links live 24 hours and the whole catalogue was minted in one sitting, so
+    left to itself it comes due all at once: three runs that do nothing followed by one
+    that makes a thousand requests and takes half an hour. Two rules split that up.
+
+      due    the link will not last until the next run. Always refreshed, never capped -
+             a dead link is a track that will not play.
+      ahead  a budget of the next-soonest, re-minted early on purpose. Nothing needs
+             them yet; the point is where their new expiry lands. This is what breaks
+             the herd apart - a run with nothing due spends itself spreading expiry
+             times out rather than waiting for them all to fall due together.
+
+    Steady state is the catalogue divided by the runs inside one link lifetime, which
+    for ~1000 albums on a 6h schedule is ~250 albums a run, a few minutes of requests.
+    """
+    by_urgency = sorted(soonest_of, key=lambda k: soonest_of[k])
+    deadline = now + DUE_MARGIN
+    refresh = {k for k in by_urgency if soonest_of[k] <= deadline}
+    due_count = len(refresh)
+    for key in by_urgency:
+        if len(refresh) >= REFRESH_BUDGET:
+            break
+        refresh.add(key)
+    return refresh, due_count
 
 
 def main() -> int:
@@ -116,16 +153,47 @@ def main() -> int:
     if previous.get("version") != DATA_VERSION:
         previous = {}
         print("формат данных изменился - запекаю заново, без переиспользования")
-    still_good: dict[str, dict] = {}
-    cutoff = time.time() + REFRESH_MARGIN
+    baked: dict[str, dict] = {}
     for post in previous.get("posts", []):
         for t in post.get("tracks", []):
-            expiry = bandcamp.stream_expiry(t.get("stream_url", ""))
-            if expiry and expiry > cutoff:
-                still_good[t["id"]] = t
+            if bandcamp.stream_expiry(t.get("stream_url", "")):
+                baked[t["id"]] = t
+
+    # What this run touches is decided before a single request goes out.
+    now = time.time()
+    soonest_of: dict[str, float] = {}
+    for post in posts:
+        bandcamp_tracks = [t for t in post["tracks"] if "bandcamp.com" in t["webpage_url"]]
+        if not bandcamp_tracks:
+            continue
+        soonest = None
+        for t in bandcamp_tracks:
+            record = baked.get(t["id"])
+            expiry = bandcamp.stream_expiry(record["stream_url"]) if record else None
+            if expiry is None:
+                # Never baked, or baked before there was a timestamp to read: fetch it.
+                soonest = 0.0
+                break
+            if soonest is None or expiry < soonest:
+                soonest = expiry
+        soonest_of[str(post["message_id"])] = soonest if soonest is not None else 0.0
+
+    refresh, due_count = plan_refresh(soonest_of, now)
+    deadline = now + DUE_MARGIN
+    print(
+        f"обновляю: {due_count} протухающих + {len(refresh) - due_count} заранее, "
+        f"переиспользую {len(soonest_of) - len(refresh)}"
+    )
 
     out_posts = []
-    stats = {"resolved": 0, "skipped": 0, "posts_failed": 0, "cache_hits": 0, "reused": 0}
+    stats = {
+        "resolved": 0,
+        "skipped": 0,
+        "posts_failed": 0,
+        "cache_hits": 0,
+        "reused": 0,
+        "ahead": 0,
+    }
     soonest_expiry = None
 
     headers = {"User-Agent": USER_AGENT, "Accept-Language": "en,ru;q=0.9"}
@@ -141,9 +209,11 @@ def main() -> int:
                 print(f"{label}: нет bandcamp-треков, пропуск")
                 continue
 
-            # Nothing to ask bandcamp about if every link here is still comfortably alive.
-            reusable = [still_good[t["id"]] for t in bandcamp_tracks if t["id"] in still_good]
-            if len(reusable) == len(bandcamp_tracks):
+            key = str(post["message_id"])
+            # Not picked by the planning pass: every link here is known good and has
+            # time left, so there is nothing to ask bandcamp about.
+            if key not in refresh:
+                reusable = [baked[t["id"]] for t in bandcamp_tracks]
                 for t in reusable:
                     expiry = bandcamp.stream_expiry(t["stream_url"])
                     if expiry and (soonest_expiry is None or expiry < soonest_expiry):
@@ -152,8 +222,9 @@ def main() -> int:
                 stats["resolved"] += len(reusable)
                 out_posts.append({**post, "tracks": reusable})
                 continue
+            if soonest_of.get(key, 0.0) > deadline:
+                stats["ahead"] += 1
 
-            key = str(post["message_id"])
             album_url = album_cache.get(key)
             if album_url:
                 stats["cache_hits"] += 1
@@ -231,6 +302,7 @@ def main() -> int:
     print(f"  пропущено треков: {stats['skipped']}, постов с ошибкой: {stats['posts_failed']}")
     print(f"  album-ссылок из кеша: {stats['cache_hits']}")
     print(f"  переиспользовано живых ссылок: {stats['reused']} (запросов не потребовалось)")
+    print(f"  обновлено заранее, про запас: {stats['ahead']} альбомов")
     if soonest_expiry:
         left = (soonest_expiry - time.time()) / 3600
         print(f"  самая ранняя ссылка протухнет через {left:.1f} ч")

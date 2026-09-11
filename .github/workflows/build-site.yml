@@ -51,6 +51,11 @@ jobs:
       - name: Check the bandcamp parser
         run: python backend/tests/test_bandcamp.py
 
+      # Guards the refresh schedule: too eager and every run walks the whole catalogue,
+      # too lazy and links die before their turn and tracks stop playing.
+      - name: Check the refresh planner
+        run: python backend/tests/test_refresh_plan.py
+
       # The catalogue (which posts exist, which tracks are in them) is committed, so a
       # run only has to fetch what the channel added since last time.
       - name: Sync new posts from the channel
