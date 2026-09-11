@@ -117,11 +117,10 @@ button:disabled { opacity: 0.4; cursor: default; }
   background: #22222b;
   flex-shrink: 0;
 }
-/* Nothing playing yet: something rather than an empty grey hole. Icon: "falling blob"
-   by Lorc, game-icons.net, CC BY 3.0. Muted on purpose, and deliberately not the moon -
-   that one belongs to the button burning right next to it. */
+/* Nothing playing yet: something rather than an empty grey hole. The drawing itself is
+   picked at random by js (see PLACEHOLDER_ICONS); muted on purpose so it never competes
+   with the button burning next to it. */
 #artwork.empty {
-  background-image: url('data:image/svg+xml;charset=utf-8,<svg%20xmlns="http://www.w3.org/2000/svg"%20viewBox="0%200%20512%20512"><path%20fill="%23565663"%20d="m227.54%2025.87%20128.997%20177.28-219.59-169.19L259.07%20198.92%2020.78%2026.128h-.005l180.06%20232.19L35.878%20129.186l169.19%20225.433L20.17%20219.052l210.703%20228.224c59.994%2056.81%20154.88%2055.822%20213.664-2.963%2058.782-58.783%2059.77-153.668%202.962-213.664L227.54%2025.87zm128.448%20222.855c27.394%200%2054.786%2010.45%2075.686%2031.35%2041.8%2041.8%2041.8%20109.574%200%20151.374s-109.573%2041.8-151.373%200c-41.8-41.802-41.8-109.575%200-151.376%2020.9-20.9%2048.295-31.35%2075.688-31.35zm-6.734%2020.734c-17.067.057-36.98%207.253-52.576%2020.872-13.134%2011.468-20.463%2025.015-22.217%2036.897-1.753%2011.88%201.438%2021.776%2010.216%2029.11%2017.555%2014.667%2055.232%2011.185%2081.5-11.752%2013.134-11.47%2020.462-25.015%2022.217-36.897%201.754-11.88-1.438-21.776-10.215-29.11-7.132-5.96-17.247-9.16-28.924-9.12zm47.572%20124.368c-8.597.03-19.063%203.706-27.14%2010.65-6.803%205.848-10.36%2012.6-11.172%2018.01-.812%205.41.45%209.185%204.314%2012.364%207.73%206.357%2027.337%205.207%2040.942-6.49%206.802-5.846%2010.36-12.597%2011.17-18.008.813-5.412-.45-9.187-4.313-12.366-3.14-2.582-7.918-4.18-13.8-4.16z"/></svg>');
   background-repeat: no-repeat;
   background-position: center;
   background-size: 62%;
