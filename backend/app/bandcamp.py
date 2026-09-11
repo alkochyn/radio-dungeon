@@ -46,6 +46,7 @@ class BcTrack:
     duration: float | None = None
     thumbnail: str | None = None
     album_url: str | None = None
+    album_title: str = ""
 
 
 @dataclass
@@ -138,6 +139,7 @@ def parse_page(html: str, page_url: str) -> BcAlbum:
                 duration=entry.get("duration"),
                 thumbnail=album.thumbnail,
                 album_url=album.url,
+                album_title=album.title,
             )
         )
 

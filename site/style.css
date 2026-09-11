@@ -53,6 +53,20 @@ button {
 }
 button:hover { background: #3a3a48; }
 button:disabled { opacity: 0.4; cursor: default; }
+/* Between the post text and its tracks: who made this and what it is called. */
+.album-heading {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.9rem 0 0.4rem;
+  font-size: 0.88rem;
+}
+.album-artist { color: #d8d8e4; font-weight: 600; }
+.album-sep { color: #55555f; }
+.album-name { color: #b9b9c6; font-style: italic; text-decoration: none; }
+a.album-name:hover { color: #ffb070; }
+
 .buy-link {
   flex: none;
   margin-left: 0.5rem;

@@ -885,12 +885,60 @@ function renderPostCard(post) {
     card.appendChild(textEl);
   }
 
-  post.tracks.forEach((track) => card.appendChild(renderTrackRow(post, track)));
+  // The post says why to listen; the album line says what you are listening to. Usually
+  // one album per post, but a post can carry several - so the heading repeats whenever
+  // the album changes rather than being printed once at the top.
+  let currentAlbum = null;
+  let headingArtist = null;
+  post.tracks.forEach((track) => {
+    const albumKey = track.album_url || track.album || null;
+    if (albumKey && albumKey !== currentAlbum) {
+      currentAlbum = albumKey;
+      headingArtist = track.artist || null;
+      card.appendChild(renderAlbumHeading(track));
+    }
+    card.appendChild(renderTrackRow(post, track, headingArtist));
+  });
 
   return card;
 }
 
-function renderTrackRow(post, track) {
+function renderAlbumHeading(track) {
+  const heading = document.createElement("div");
+  heading.className = "album-heading";
+
+  if (track.artist) {
+    heading.appendChild(
+      Object.assign(document.createElement("span"), {
+        className: "album-artist",
+        textContent: track.artist,
+      })
+    );
+  }
+  if (track.album) {
+    if (track.artist) {
+      heading.appendChild(
+        Object.assign(document.createElement("span"), {
+          className: "album-sep",
+          textContent: "—",
+        })
+      );
+    }
+    const name = document.createElement(track.album_url ? "a" : "span");
+    name.className = "album-name";
+    name.textContent = track.album;
+    if (track.album_url) {
+      name.href = track.album_url;
+      name.target = "_blank";
+      name.rel = "noopener";
+      name.title = "Открыть альбом на bandcamp";
+    }
+    heading.appendChild(name);
+  }
+  return heading;
+}
+
+function renderTrackRow(post, track, headingArtist) {
   const row = document.createElement("div");
   const isPlaying = current && current.trackId === track.id;
   row.className = "track-row" + (isPlaying ? " playing" : "");
@@ -906,10 +954,14 @@ function renderTrackRow(post, track) {
   titleEl.className = "title";
   titleEl.textContent = track.title;
   meta.appendChild(titleEl);
-  const artistEl = document.createElement("div");
-  artistEl.className = "artist";
-  artistEl.textContent = track.artist || "";
-  meta.appendChild(artistEl);
+  // Repeating the album's artist on every one of its tracks is just noise; on a
+  // compilation, where the per-track artist differs, it is the whole point.
+  if (track.artist && track.artist !== headingArtist) {
+    const artistEl = document.createElement("div");
+    artistEl.className = "artist";
+    artistEl.textContent = track.artist;
+    meta.appendChild(artistEl);
+  }
 
   if (track.categories.length) {
     const catsEl = document.createElement("div");

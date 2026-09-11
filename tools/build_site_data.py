@@ -35,6 +35,10 @@ OUT_DIR = ROOT / "site" / "data"
 OUT_FILE = OUT_DIR / "posts.json"
 
 CHANNEL = "radio_dungeon"
+# Bumped whenever a field is added to the baked records. Without it a run would happily
+# reuse yesterday's entries forever and the new field would only appear on the albums
+# that happened to need refreshing.
+DATA_VERSION = 2
 REQUEST_DELAY = float(os.environ.get("BC_REQUEST_DELAY", "1.0"))
 
 # A run only has to touch albums whose links are running out. Links last 24h and the
@@ -109,6 +113,9 @@ def main() -> int:
 
     # Whatever the previous run baked is still good until its links approach expiry.
     previous = load_json(OUT_FILE, {})
+    if previous.get("version") != DATA_VERSION:
+        previous = {}
+        print("формат данных изменился - запекаю заново, без переиспользования")
     still_good: dict[str, dict] = {}
     cutoff = time.time() + REFRESH_MARGIN
     for post in previous.get("posts", []):
@@ -191,6 +198,7 @@ def main() -> int:
                         "artist": fresh.artist or original.get("artist", ""),
                         "thumbnail": fresh.thumbnail or original.get("thumbnail"),
                         "webpage_url": original["webpage_url"],
+                        "album": fresh.album_title or album.title,
                         "album_url": album.url,
                         "stream_url": fresh.stream_url,
                         "duration": fresh.duration,
@@ -204,6 +212,7 @@ def main() -> int:
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     payload = {
+        "version": DATA_VERSION,
         "generated_at": int(time.time()),
         "expires_at": soonest_expiry,
         "channel": CHANNEL,
