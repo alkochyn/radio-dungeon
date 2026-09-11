@@ -7,7 +7,7 @@ const prevPostBtn = document.getElementById("prev-post-btn");
 const prevBtn = document.getElementById("prev-btn");
 const nextBtn = document.getElementById("next-btn");
 const nextPostBtn = document.getElementById("next-post-btn");
-const shuffleBtn = document.getElementById("shuffle-btn");
+const radioBtn = document.getElementById("radio-btn");
 const repeatBtn = document.getElementById("repeat-btn");
 const sortSelect = document.getElementById("sort-select");
 const filterSelect = document.getElementById("filter-select");
@@ -33,7 +33,8 @@ let sortOrder = "new"; // 'new' | 'old'
 let filterMode = "all"; // 'all' | 'liked' | 'categories'
 let selectedCategoryIds = new Set();
 let repeatMode = "none"; // 'none' | 'post' | 'track'
-let shuffleMode = false;
+let radioMode = false;
+let radioBag = []; // tracks not yet played in the current radio round
 
 let current = null; // { messageId, trackId } | null
 let history = [];
@@ -47,7 +48,7 @@ let openPopoverEl = null;
 let openPopoverKey = null;
 let popoverNeedsRerender = false;
 
-// --- persistence of UI preferences (filter/sort/repeat/shuffle) -------------------
+// --- persistence of UI preferences (filter/sort/repeat) --------------------------
 // Likes and category assignments already live server-side in user_data.json, kept
 // separate from tracks.json so a resync can't wipe them. This only remembers small
 // per-browser display preferences.
@@ -61,7 +62,6 @@ function loadUiPrefs() {
     if (p.filterMode) filterMode = p.filterMode;
     if (Array.isArray(p.selectedCategoryIds)) selectedCategoryIds = new Set(p.selectedCategoryIds);
     if (p.repeatMode) repeatMode = p.repeatMode;
-    if (typeof p.shuffleMode === "boolean") shuffleMode = p.shuffleMode;
   } catch (e) {
     // corrupt or blocked storage - just fall back to defaults
   }
@@ -76,7 +76,6 @@ function saveUiPrefs() {
         filterMode,
         selectedCategoryIds: Array.from(selectedCategoryIds),
         repeatMode,
-        shuffleMode,
       })
     );
   } catch (e) {
@@ -163,7 +162,7 @@ function findTrack(trackId) {
 
 // --- active (filtered + sorted) list -------------------------------------------
 // This is the single source of truth both for what's rendered as post cards and for
-// what next/prev/shuffle are allowed to play - nothing outside it is ever picked.
+// what next/prev are allowed to play - nothing outside it is ever picked.
 
 function computeActiveList() {
   let list = posts.map((post) => {
@@ -240,7 +239,38 @@ function updateNowPlaying(track) {
   artwork.src = track.thumbnail || "";
 }
 
+function allTrackRefs() {
+  const refs = [];
+  posts.forEach((post) =>
+    post.tracks.forEach((t) => refs.push({ messageId: post.message_id, trackId: t.id }))
+  );
+  return refs;
+}
+
+function pickRandomFromChannel() {
+  // A bag, not a fresh dice roll every time: hearing the same track twice within an
+  // hour while a thousand others go unplayed is exactly what makes "random" feel broken.
+  if (!radioBag.length) {
+    radioBag = allTrackRefs();
+    for (let i = radioBag.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [radioBag[i], radioBag[j]] = [radioBag[j], radioBag[i]];
+    }
+  }
+  let ref = radioBag.pop();
+  // Refilling the bag can put the track that just played back on top of it.
+  if (ref && current && ref.trackId === current.trackId && radioBag.length) {
+    const next = radioBag.pop();
+    radioBag.unshift(ref);
+    ref = next;
+  }
+  return ref || null;
+}
+
 function pickNext() {
+  // The radio ignores the filter on purpose: it plays the channel, not the view.
+  if (radioMode) return pickRandomFromChannel();
+
   const active = computeActiveList();
   const flat = flattenActive(active);
   if (!flat.length) return null;
@@ -251,25 +281,10 @@ function pickNext() {
   if (effectiveRepeat === "post") {
     const postTracks = tracksOfPostFromActive(active, current.messageId);
     if (postTracks.length) {
-      if (shuffleMode) {
-        return postTracks[Math.floor(Math.random() * postTracks.length)];
-      }
       const idx = postTracks.findIndex((r) => r.trackId === current.trackId);
       return postTracks[(idx + 1) % postTracks.length];
     }
     return flat[0]; // current post fell out of the filtered list
-  }
-
-  if (shuffleMode) {
-    const postTracks = tracksOfPostFromActive(active, current.messageId);
-    const idx = postTracks.findIndex((r) => r.trackId === current.trackId);
-    if (idx !== -1 && idx + 1 < postTracks.length) {
-      return postTracks[idx + 1]; // finish the current post in order first
-    }
-    const randPost = active[Math.floor(Math.random() * active.length)];
-    return randPost && randPost.tracks.length
-      ? { messageId: randPost.message_id, trackId: randPost.tracks[0].id }
-      : flat[0];
   }
 
   const idx = flat.findIndex((r) => r.trackId === current.trackId);
@@ -306,11 +321,7 @@ function neighborPost(delta) {
 function goToPost(delta) {
   const post = neighborPost(delta);
   if (!post || !post.tracks.length) return;
-  const track =
-    repeatMode === "post" && shuffleMode
-      ? post.tracks[Math.floor(Math.random() * post.tracks.length)]
-      : post.tracks[0];
-  playNewRef({ messageId: post.message_id, trackId: track.id });
+  playNewRef({ messageId: post.message_id, trackId: post.tracks[0].id });
 }
 
 audio.addEventListener("ended", () => {
@@ -336,25 +347,40 @@ prevBtn.addEventListener("click", prevTrack);
 nextBtn.addEventListener("click", nextTrack);
 
 function updateModeButtons() {
-  shuffleBtn.classList.toggle("active", shuffleMode);
-  shuffleBtn.classList.toggle("inert", repeatMode === "track");
-  shuffleBtn.title = shuffleMode ? "Вперемешку (вкл)" : "Вперемешку";
+  radioBtn.classList.toggle("active", radioMode);
+  radioBtn.title = radioMode
+    ? "Chaos Radio: играет (нажми, чтобы выключить)"
+    : "Chaos Radio - случайные треки со всего канала, нон-стоп";
 
   repeatBtn.classList.toggle("active-post", repeatMode === "post");
   repeatBtn.classList.toggle("active-track", repeatMode === "track");
+  // "Non-stop" and "repeat this" are contradictory instructions - while the radio
+  // plays, the repeat button has nothing sensible to mean.
+  repeatBtn.classList.toggle("inert", radioMode);
   const labels = { none: "выкл", post: "пост", track: "трек" };
-  repeatBtn.title = `Повтор: ${labels[repeatMode]}`;
+  repeatBtn.title = radioMode
+    ? "Повтор недоступен, пока играет Chaos Radio"
+    : `Повтор: ${labels[repeatMode]}`;
 }
 
 repeatBtn.addEventListener("click", () => {
+  if (radioMode) return;
   repeatMode = repeatMode === "none" ? "post" : repeatMode === "post" ? "track" : "none";
   saveUiPrefs();
   updateModeButtons();
 });
 
-shuffleBtn.addEventListener("click", () => {
-  shuffleMode = !shuffleMode;
-  saveUiPrefs();
+radioBtn.addEventListener("click", () => {
+  radioMode = !radioMode;
+  if (radioMode) {
+    repeatMode = "none";
+    saveUiPrefs();
+    // Starting the radio is an action, not a setting: it plays something at once
+    // rather than waiting for the listener to also pick a track.
+    radioBag = [];
+    const ref = pickRandomFromChannel();
+    if (ref) playNewRef(ref);
+  }
   updateModeButtons();
 });
 

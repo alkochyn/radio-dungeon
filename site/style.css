@@ -71,10 +71,10 @@ button:disabled { opacity: 0.4; cursor: default; }
 audio { width: 100%; }
 .controls { margin-top: 0.5rem; display: flex; gap: 0.4rem; flex-wrap: wrap; }
 .controls button { padding: 0.5rem 0.7rem; }
-#shuffle-btn.active { background: #3a3a70; border-color: #5a5aa8; }
+#radio-btn.active { background: #5a3a70; border-color: #8a5ac0; }
 #repeat-btn.active-post { background: #3a3a70; border-color: #5a5aa8; }
 #repeat-btn.active-track { background: #5c3a3a; border-color: #8c5a5a; }
-#shuffle-btn.inert { opacity: 0.35; }
+.controls button.inert { opacity: 0.35; }
 
 /* --- toolbar: sort / filter -------------------------------------------------- */
 #toolbar {
