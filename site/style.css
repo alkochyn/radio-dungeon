@@ -152,6 +152,9 @@ a.album-name:hover { color: #ffb070; }
 .transport,
 .transport button,
 #radio-btn {
+  /* No border on anything bevelled: clip-path cuts one into four loose bars with a gap
+     at every diagonal, and the base button style would otherwise put one back. */
+  border: none;
   clip-path: polygon(
     var(--cut) 0,
     calc(100% - var(--cut)) 0,
@@ -234,7 +237,6 @@ audio { display: none; }
      was easy to lose among the numbers either side of it. */
   padding: 0.5rem 0.9rem 0.5rem 0.5rem;
   background: #15151c;
-  border: 1px solid #33333f;
   --cut: 9px;
   border-radius: 2px;
 }
@@ -248,7 +250,6 @@ audio { display: none; }
   border-radius: 2px;
   font-size: 0.95rem;
   background: #2a2a35;
-  border: 1px solid #454553;
 }
 #play-btn {
   width: 2.9rem;
@@ -258,7 +259,6 @@ audio { display: none; }
   align-items: center;
   justify-content: center;
   background: linear-gradient(180deg, #3a3a48 0%, #24242e 100%);
-  border-color: #5a5a6a;
   color: #ffd9a0;
 }
 #play-btn svg {
@@ -357,7 +357,6 @@ audio { display: none; }
   gap: 0.4rem;
   min-width: 8.5rem;
   padding: 0.9rem 1.2rem;
-  border: 1px solid hsl(var(--h) 75% 45%);
   --cut: 12px;
   border-radius: 2px;
   /* The fill stays deep no matter which hue comes up: white on hsl(h 85% 24%) clears
@@ -376,7 +375,8 @@ audio { display: none; }
   letter-spacing: 0.09em;
   text-transform: uppercase;
   cursor: pointer;
-  box-shadow: 0 0 14px hsl(var(--h) 90% 55% / 0.3), inset 0 -12px 22px hsl(var(--h) 90% 50% / 0.22);
+  box-shadow: inset 0 -12px 22px hsl(var(--h) 90% 50% / 0.22);
+  filter: drop-shadow(0 0 10px hsl(var(--h) 90% 55% / 0.45));
   animation: ember 3.4s ease-in-out infinite;
 }
 #radio-btn svg {
@@ -387,28 +387,39 @@ audio { display: none; }
 }
 #radio-btn:hover {
   color: #fff;
-  border-color: hsl(var(--h) 85% 58%);
-  box-shadow: 0 0 20px hsl(var(--h) 95% 60% / 0.5), inset 0 -12px 24px hsl(var(--h) 95% 55% / 0.3);
+  box-shadow: inset 0 -12px 24px hsl(var(--h) 95% 55% / 0.3);
+  filter: drop-shadow(0 0 14px hsl(var(--h) 95% 60% / 0.7));
 }
 #radio-btn.active {
   color: #fff;
-  border-color: hsl(var(--h) 95% 68%);
   animation: blaze 1.1s ease-in-out infinite alternate;
 }
 
 @keyframes ember {
-  0%, 100% { box-shadow: 0 0 12px hsl(var(--h) 90% 55% / 0.22), inset 0 -12px 22px hsl(var(--h) 90% 50% / 0.2); }
-  50%      { box-shadow: 0 0 18px hsl(var(--h) 92% 58% / 0.36), inset 0 -14px 26px hsl(var(--h) 92% 52% / 0.3); }
+  0%, 100% {
+    box-shadow: inset 0 -12px 22px hsl(var(--h) 90% 50% / 0.2);
+    filter: drop-shadow(0 0 9px hsl(var(--h) 90% 55% / 0.35));
+  }
+  50% {
+    box-shadow: inset 0 -14px 26px hsl(var(--h) 92% 52% / 0.3);
+    filter: drop-shadow(0 0 15px hsl(var(--h) 92% 58% / 0.6));
+  }
 }
 @keyframes blaze {
-  from { box-shadow: 0 0 18px hsl(var(--h) 92% 58% / 0.5), inset 0 -14px 26px hsl(var(--h) 92% 52% / 0.35); }
-  to   { box-shadow: 0 0 34px hsl(var(--h) 95% 68% / 0.85), inset 0 -18px 32px hsl(var(--h) 95% 60% / 0.5); }
+  from {
+    box-shadow: inset 0 -14px 26px hsl(var(--h) 92% 52% / 0.35);
+    filter: drop-shadow(0 0 15px hsl(var(--h) 92% 58% / 0.75));
+  }
+  to {
+    box-shadow: inset 0 -18px 32px hsl(var(--h) 95% 60% / 0.5);
+    filter: drop-shadow(0 0 26px hsl(var(--h) 95% 68% / 1));
+  }
 }
 
 /* Flickering fire is exactly the kind of motion that makes some people ill. */
 @media (prefers-reduced-motion: reduce) {
   #radio-btn { animation: none; }
-  #radio-btn.active { animation: none; border-color: hsl(var(--h) 90% 62%); }
+  #radio-btn.active { animation: none; }
 }
 
 .credits {
@@ -552,12 +563,10 @@ audio { display: none; }
   }
   .player.has-cover .transport {
     background: rgba(12, 12, 18, 0.92);
-    border-color: #4a4a58;
   }
   .player.has-cover .transport button {
     background: rgba(28, 28, 36, 0.92);
-    border-color: #5a5a68;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.85));
   }
 
   #now-title,
