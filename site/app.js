@@ -11,10 +11,8 @@ const muteBtn = document.getElementById("mute-btn");
 const postContextEl = document.getElementById("post-context");
 const postContextLinkEl = document.getElementById("post-context-link");
 const postContextTextEl = document.getElementById("post-context-text");
-const prevPostBtn = document.getElementById("prev-post-btn");
 const prevBtn = document.getElementById("prev-btn");
 const nextBtn = document.getElementById("next-btn");
-const nextPostBtn = document.getElementById("next-post-btn");
 const radioBtn = document.getElementById("radio-btn");
 const repeatBtn = document.getElementById("repeat-btn");
 const sortBtn = document.getElementById("sort-btn");
@@ -365,21 +363,6 @@ function prevTrack() {
   }
 }
 
-function neighborPost(delta) {
-  const active = computeActiveList();
-  if (!active.length) return null;
-  let idx = current ? active.findIndex((p) => String(p.message_id) === String(current.messageId)) : -1;
-  if (idx === -1) idx = delta > 0 ? -1 : 0;
-  let newIdx = (idx + delta + active.length) % active.length;
-  return active[newIdx];
-}
-
-function goToPost(delta) {
-  stopRadio();
-  const post = neighborPost(delta);
-  if (!post || !post.tracks.length) return;
-  playNewRef({ messageId: post.message_id, trackId: post.tracks[0].id });
-}
 
 // --- transport ---------------------------------------------------------------------
 // The browser's own <audio controls> is a white pill that cannot be themed the same way
@@ -479,8 +462,6 @@ audio.addEventListener("error", async () => {
   nextTrack();
 });
 
-prevPostBtn?.addEventListener("click", () => goToPost(-1));
-nextPostBtn?.addEventListener("click", () => goToPost(1));
 prevBtn?.addEventListener("click", prevTrack);
 nextBtn?.addEventListener("click", nextTrack);
 

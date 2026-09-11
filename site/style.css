@@ -214,8 +214,22 @@ audio { display: none; }
   box-shadow: 0 0 7px rgba(255, 150, 60, 0.75);
 }
 #seek:focus-visible { outline: 2px solid #c2521f; outline-offset: 4px; }
-.controls { margin-top: 0.5rem; display: flex; gap: 0.4rem; flex-wrap: wrap; }
-.controls button { padding: 0.5rem 0.7rem; }
+/* Skipping tracks sits with the disco button, not under the seek bar: both are about
+   what plays next, while the pill above is about how this track plays. */
+.skip {
+  flex: none;
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.skip button {
+  width: 2.6rem;
+  height: 2.6rem;
+  padding: 0;
+  line-height: 1;
+  font-size: 0.95rem;
+}
 /* --- Chaos Moon Disco ----------------------------------------------------------
    Deliberately not one of the transport buttons: it is not "one more way to skip a
    track", it is the whole channel on fire. So it sits apart and looks it. */
@@ -294,7 +308,7 @@ audio { display: none; }
 .credits a { color: #777; }
 #repeat-btn.active-post { background: #3a3a70; border-color: #5a5aa8; }
 #repeat-btn.active-track { background: #5c3a3a; border-color: #8c5a5a; }
-.controls button.inert { opacity: 0.35; }
+.transport button.inert { opacity: 0.35; }
 
 /* --- toolbar: sort / filter -------------------------------------------------- */
 #toolbar {
@@ -545,7 +559,7 @@ audio { display: none; }
     background: rgba(12, 12, 18, 0.92);
     border-color: #4a4a58;
   }
-  .player.has-cover .controls button {
+  .player.has-cover .skip button {
     background: rgba(28, 28, 36, 0.92);
     border-color: #5a5a68;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
@@ -562,8 +576,14 @@ audio { display: none; }
   #mute-btn { display: none; }
   .transport { gap: 0.45rem; }
 
-  .controls { gap: 0.3rem; }
-  .controls button { padding: 0.45rem 0.6rem; }
+  /* On a phone the row is wide and short of height, so the two skips sit side by side
+     under the disco button rather than stacked beside it. */
+  .skip {
+    flex-direction: row;
+    justify-content: center;
+    width: 100%;
+  }
+  .skip button { flex: 1; height: 2.4rem; }
 
   #radio-btn {
     width: 100%;
