@@ -3,6 +3,7 @@ const dataNote = document.getElementById("data-note");
 const nowTitle = document.getElementById("now-title");
 const nowArtist = document.getElementById("now-artist");
 const artwork = document.getElementById("artwork");
+const playerEl = document.querySelector(".player");
 const prevPostBtn = document.getElementById("prev-post-btn");
 const prevBtn = document.getElementById("prev-btn");
 const nextBtn = document.getElementById("next-btn");
@@ -244,6 +245,21 @@ function updateNowPlaying(track) {
   } else {
     artwork.removeAttribute("src");
     artwork.classList.add("empty");
+  }
+  setCover(track.thumbnail);
+}
+
+// On a phone the cover is not a thumbnail beside the controls - it is the backdrop of
+// the whole player. Handing css a variable keeps that decision in the stylesheet, so
+// the wide layout can go on ignoring it.
+function setCover(url) {
+  if (!playerEl) return;
+  if (url) {
+    playerEl.style.setProperty("--cover", `url("${url}")`);
+    playerEl.classList.add("has-cover");
+  } else {
+    playerEl.style.removeProperty("--cover");
+    playerEl.classList.remove("has-cover");
   }
 }
 

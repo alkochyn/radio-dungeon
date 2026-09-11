@@ -368,7 +368,36 @@ audio { width: 100%; }
     padding: 0.85rem;
   }
 
-  #artwork { width: 64px; height: 64px; }
+  /* No thumbnail square here at all. Before anything plays the player is just its
+     controls; once a track starts, its cover becomes the backdrop of the whole block. */
+  #artwork { display: none; }
+
+  .player {
+    position: relative;
+    background-image: var(--cover, none);
+    background-size: cover;
+    background-position: center;
+    overflow: hidden;
+  }
+  /* Album art is unpredictable - white sleeves, busy artwork, bright reds. A scrim
+     between the cover and the controls is what keeps them readable on any of it. */
+  .player.has-cover::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(16, 16, 22, 0.74) 0%, rgba(16, 16, 22, 0.88) 100%);
+  }
+  .player > * { position: relative; }
+
+  .player.has-cover #now-title,
+  .player.has-cover #now-artist {
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  }
+  .player.has-cover .controls button {
+    background: rgba(28, 28, 36, 0.92);
+    border-color: #5a5a68;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+  }
 
   #now-title,
   #now-artist {
