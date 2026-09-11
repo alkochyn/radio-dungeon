@@ -15,6 +15,7 @@ const postContextTextEl = document.getElementById("post-context-text");
 const prevBtn = document.getElementById("prev-btn");
 const nextBtn = document.getElementById("next-btn");
 const radioBtn = document.getElementById("radio-btn");
+const transportEl = document.querySelector(".transport");
 const postListEl = document.getElementById("post-list");
 const playerSlot = document.getElementById("player-slot");
 const preciousBtn = document.getElementById("precious-btn");
@@ -735,6 +736,13 @@ function syncPlayerDock() {
   playerDocked = shouldDock;
   document.body.classList.toggle("player-docked", shouldDock);
   if (!shouldDock) playerSlot.style.minHeight = "";
+  // The disco has no room of its own in a bar this short, so it joins the transport
+  // beside the heart. Moving the node keeps its listeners and its state; a css-only
+  // version would need a second button and two things to keep in step.
+  if (radioBtn && transportEl && playerEl) {
+    if (shouldDock) transportEl.appendChild(radioBtn);
+    else playerEl.appendChild(radioBtn);
+  }
 }
 
 let feedTickScheduled = false;

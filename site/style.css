@@ -635,22 +635,24 @@ audio { display: none; }
   body.player-docked #now-title { font-size: 0.95rem; }
   body.player-docked .transport { padding: 0.35rem 0.5rem; }
 
-  /* Docked, the block turns on its side: the title and the controls take the width
-     they need and the disco sits beside them as a square. Its name is what made it a
-     full-width slab, and at this size the moon says it on its own. */
+  /* Docked, the block turns on its side and the disco moves into the transport strip
+     (js reparents it, see syncPlayerDock), sitting past the heart with a gap so it
+     reads as its own thing rather than one more skip button. Its name is what made it
+     a full-width slab; at this size the moon says it on its own. */
   body.player-docked .player { flex-direction: row; align-items: center; }
   body.player-docked .now-playing { flex: 1; min-width: 0; }
   body.player-docked #radio-btn {
     flex: none;
-    width: 3rem;
-    height: 3rem;
+    width: 2.3rem;
+    height: 2.3rem;
     min-width: 0;
+    margin-left: 0.55rem;
     padding: 0;
     gap: 0;
-    --cut: 9px;
+    --cut: 7px;
   }
   body.player-docked #radio-btn > span { display: none; }
-  body.player-docked #radio-btn svg { width: 24px; height: 24px; }
+  body.player-docked #radio-btn svg { width: 20px; height: 20px; }
 
   /* Docked, the bar was the same colour as the cards it floats over and read as part
      of the feed. A border cannot help - the bevel would cut it into loose bars, and an
@@ -733,8 +735,11 @@ audio { display: none; }
    of this belongs on a device that cannot hover in the first place. */
 @media (hover: hover) {
   .like-btn:hover { background: #24242e; border-color: #3a3a48; }
+  /* Each hover shows the colour the click will leave behind: red over an empty heart,
+     grey over a full one. A brighter red on the liked heart said the opposite - it
+     looked like more like, when the click was about to take it away. */
   .like-btn:hover::before { background-color: #b3332a; }
-  .like-btn.liked:hover::before { background-color: #e05a44; }
+  .like-btn.liked:hover::before { background-color: #7e7e8c; }
   /* The player's heart sits among the transport controls, so it behaves like one: the
      row's transparent-until-hovered treatment reads as a hole in the strip. */
   #now-like:hover:not(:disabled) { background: #3a3a48; }
