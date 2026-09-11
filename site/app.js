@@ -9,14 +9,18 @@ const seekEl = document.getElementById("seek");
 const timeCurrentEl = document.getElementById("time-current");
 const timeTotalEl = document.getElementById("time-total");
 const muteBtn = document.getElementById("mute-btn");
+const postContextEl = document.getElementById("post-context");
+const postContextDateEl = document.getElementById("post-context-date");
+const postContextLinkEl = document.getElementById("post-context-link");
+const postContextTextEl = document.getElementById("post-context-text");
 const prevPostBtn = document.getElementById("prev-post-btn");
 const prevBtn = document.getElementById("prev-btn");
 const nextBtn = document.getElementById("next-btn");
 const nextPostBtn = document.getElementById("next-post-btn");
 const radioBtn = document.getElementById("radio-btn");
 const repeatBtn = document.getElementById("repeat-btn");
-const sortSelect = document.getElementById("sort-select");
-const filterSelect = document.getElementById("filter-select");
+const sortBtn = document.getElementById("sort-btn");
+const filterBtns = Array.from(document.querySelectorAll("[data-filter]"));
 const categoryFilterEl = document.getElementById("category-filter");
 const categoryManagerToggle = document.getElementById("category-manager-toggle");
 const categoryManagerBody = document.getElementById("category-manager-body");
@@ -24,13 +28,13 @@ const categoryManageListEl = document.getElementById("category-manage-list");
 const categoryCreateForm = document.getElementById("category-create-form");
 const categoryNameInput = document.getElementById("category-name-input");
 const postListEl = document.getElementById("post-list");
-const pagePrevBtns = [document.getElementById("page-prev"), document.getElementById("page-prev-bottom")];
-const pageNextBtns = [document.getElementById("page-next"), document.getElementById("page-next-bottom")];
-const pageInfos = [document.getElementById("page-info"), document.getElementById("page-info-bottom")];
+const listInfoEl = document.getElementById("list-info");
+const feedSentinelEl = document.getElementById("feed-sentinel");
+const feedEndEl = document.getElementById("feed-end");
 
 const UI_PREFS_KEY = "rd_player_prefs_v1";
-const PAGE_SIZE = 20; // posts per page - the channel has thousands of tracks, so
-// rendering the whole filtered list at once would make the page unusably heavy.
+const PAGE_SIZE = 20; // posts appended per step - the channel has thousands of tracks,
+// so rendering the whole filtered list at once would make the page unusably heavy.
 
 let posts = [];
 let categories = [];
@@ -46,7 +50,7 @@ let current = null; // { messageId, trackId } | null
 let history = [];
 let historyPos = -1;
 
-let currentPage = 0;
+let shownCount = PAGE_SIZE; // how far down the feed we have rendered so far
 
 let pollTimer = null;
 
@@ -230,7 +234,11 @@ function revealCurrentPage() {
   if (!current) return;
   const active = computeActiveList();
   const idx = active.findIndex((p) => String(p.message_id) === String(current.messageId));
-  if (idx !== -1) currentPage = Math.floor(idx / PAGE_SIZE);
+  // Chaos Radio happily picks a track eight hundred posts down; grow the feed far
+  // enough that the row it is playing actually exists on the page.
+  if (idx !== -1 && idx >= shownCount) {
+    shownCount = Math.ceil((idx + 1) / PAGE_SIZE) * PAGE_SIZE;
+  }
 }
 
 function playNewRef(ref) {
@@ -254,7 +262,37 @@ function updateNowPlaying(track) {
     artwork.classList.add("empty");
   }
   setCover(track.thumbnail);
+  showPostContext();
 }
+
+// The post text is the whole point of the channel - it is where the recommendation
+// actually lives. Playing a track without it shows the music but loses the voice.
+function showPostContext() {
+  if (!postContextEl) return;
+  const post = current ? posts.find((p) => p.message_id === current.messageId) : null;
+  if (!post || !post.message_text) {
+    postContextEl.hidden = true;
+    return;
+  }
+  postContextTextEl.textContent = post.message_text;
+  postContextDateEl.textContent = post.message_date
+    ? new Date(post.message_date).toLocaleString("ru-RU")
+    : "";
+  if (post.telegram_url) {
+    postContextLinkEl.href = post.telegram_url;
+    postContextLinkEl.hidden = false;
+  } else {
+    postContextLinkEl.hidden = true;
+  }
+  // Some of these run long; show a few lines and let it open on a tap.
+  postContextEl.classList.remove("expanded");
+  postContextEl.hidden = false;
+}
+
+postContextEl?.addEventListener("click", (e) => {
+  if (e.target.closest("#post-context-link")) return;
+  postContextEl.classList.toggle("expanded");
+});
 
 // On a phone the cover is not a thumbnail beside the controls - it is the backdrop of
 // the whole player. Handing css a variable keeps that decision in the stylesheet, so
@@ -633,7 +671,7 @@ function renderCategoryFilterChips() {
       if (selectedCategoryIds.has(cat.id)) selectedCategoryIds.delete(cat.id);
       else selectedCategoryIds.add(cat.id);
       saveUiPrefs();
-      currentPage = 0;
+      shownCount = PAGE_SIZE;
       renderCategoryFilterChips();
       renderPostList();
     });
@@ -697,12 +735,8 @@ document.addEventListener("click", (e) => {
 
 function renderPostList() {
   const active = computeActiveList();
-  const pageCount = Math.max(1, Math.ceil(active.length / PAGE_SIZE));
-  if (currentPage >= pageCount) currentPage = pageCount - 1;
-  if (currentPage < 0) currentPage = 0;
-
-  const start = currentPage * PAGE_SIZE;
-  const pageItems = active.slice(start, start + PAGE_SIZE);
+  if (shownCount < PAGE_SIZE) shownCount = PAGE_SIZE;
+  const visible = active.slice(0, shownCount);
 
   postListEl.innerHTML = "";
   if (!active.length) {
@@ -711,24 +745,54 @@ function renderPostList() {
     hint.textContent = "Ничего не найдено";
     postListEl.appendChild(hint);
   } else {
-    pageItems.forEach((post) => postListEl.appendChild(renderPostCard(post)));
+    visible.forEach((post) => postListEl.appendChild(renderPostCard(post)));
   }
 
-  const infoText = active.length
-    ? `Стр. ${currentPage + 1} из ${pageCount} (${active.length} постов)`
-    : "Постов пока нет";
-  pageInfos.forEach((el) => (el.textContent = infoText));
-  pagePrevBtns.forEach((el) => (el.disabled = currentPage <= 0));
-  pageNextBtns.forEach((el) => (el.disabled = currentPage >= pageCount - 1));
+  if (listInfoEl) {
+    listInfoEl.textContent = active.length
+      ? `${visible.length} из ${active.length} постов`
+      : "Постов пока нет";
+  }
+  if (feedEndEl) feedEndEl.hidden = !active.length || visible.length < active.length;
+  // The sentinel sits below the list; while it is on screen the feed keeps growing.
+  if (feedSentinelEl) feedSentinelEl.hidden = visible.length >= active.length;
+  maybeGrowFeed();
 }
 
-function goToPage(delta) {
-  currentPage += delta;
+// --- endless feed -------------------------------------------------------------------
+// Paging through 50 pages to reach an album is not how anyone browses a channel. The
+// list just keeps going; it grows a screenful at a time so the dom never holds 8000
+// track rows at once.
+
+function growFeed() {
+  const active = computeActiveList();
+  if (shownCount >= active.length) return false;
+  shownCount += PAGE_SIZE;
   renderPostList();
+  return true;
 }
 
-pagePrevBtns.forEach((el) => el.addEventListener("click", () => goToPage(-1)));
-pageNextBtns.forEach((el) => el.addEventListener("click", () => goToPage(1)));
+function maybeGrowFeed() {
+  if (!feedSentinelEl || feedSentinelEl.hidden) return;
+  // Short lists (or a tall screen) can leave the sentinel visible after a render, and
+  // an observer only fires on change - so top the feed up until it is off screen.
+  const rect = feedSentinelEl.getBoundingClientRect();
+  if (rect.top < window.innerHeight + 400) {
+    if (growFeed()) return;
+  }
+}
+
+if (feedSentinelEl && "IntersectionObserver" in window) {
+  new IntersectionObserver(
+    (entries) => {
+      if (entries.some((e) => e.isIntersecting)) growFeed();
+    },
+    { rootMargin: "600px 0px" }
+  ).observe(feedSentinelEl);
+} else {
+  window.addEventListener("scroll", maybeGrowFeed, { passive: true });
+}
+
 
 function renderPostCard(post) {
   const card = document.createElement("div");
@@ -882,20 +946,34 @@ function renderTrackRow(post, track) {
 
 // --- sort / filter toolbar ------------------------------------------------------
 
-sortSelect?.addEventListener("change", () => {
-  sortOrder = sortSelect.value;
+// Two dropdowns for five states was more form than the page needed; these say the same
+// thing in the same visual language as the rest of the controls.
+function syncToolbar() {
+  if (sortBtn) {
+    sortBtn.textContent = sortOrder === "new" ? "↓" : "↑";
+    sortBtn.title = sortOrder === "new" ? "Сначала новые" : "Сначала старые";
+  }
+  filterBtns.forEach((b) => b.classList.toggle("active", b.dataset.filter === filterMode));
+}
+
+sortBtn?.addEventListener("click", () => {
+  sortOrder = sortOrder === "new" ? "old" : "new";
   saveUiPrefs();
-  currentPage = 0;
+  shownCount = PAGE_SIZE;
+  syncToolbar();
   renderPostList();
 });
 
-filterSelect?.addEventListener("change", () => {
-  filterMode = filterSelect.value;
-  saveUiPrefs();
-  currentPage = 0;
-  renderCategoryFilterChips();
-  renderPostList();
-});
+filterBtns.forEach((btn) =>
+  btn.addEventListener("click", () => {
+    filterMode = btn.dataset.filter;
+    saveUiPrefs();
+    shownCount = PAGE_SIZE;
+    syncToolbar();
+    renderCategoryFilterChips();
+    renderPostList();
+  })
+);
 
 // --- keeping the baked links alive -------------------------------------------------
 // Bandcamp stamps every stream url with a 24h expiry, and a scheduled rebuild bakes
@@ -931,8 +1009,7 @@ async function refreshDataAndRetry(ref) {
 (async function init() {
   try {
     loadUiPrefs();
-    sortSelect.value = sortOrder;
-    filterSelect.value = filterMode;
+    syncToolbar();
     updateModeButtons();
 
     loadUserData();

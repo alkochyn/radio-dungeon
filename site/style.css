@@ -55,6 +55,42 @@ button:disabled { opacity: 0.4; cursor: default; }
 }
 .load-failure-title { color: #ddd; font-size: 1.1rem; margin-bottom: 0.4rem; }
 
+/* Whatever the channel wrote about this album, above the player. It is the reason a
+   listener is here at all, and it was only visible down in the list before. */
+#post-context {
+  background: #1a1a22;
+  border: 1px solid #2c2c38;
+  border-left: 3px solid #7a3a18;
+  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+  margin-bottom: 0.75rem;
+  cursor: pointer;
+}
+.post-context-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: #7b7b8a;
+  font-size: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+#post-context-link { color: #8a8a9a; text-decoration: none; }
+#post-context-link:hover { color: #ffb070; }
+#post-context-text {
+  color: #c8c8d4;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+#post-context.expanded #post-context-text {
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+}
+
 .player {
   display: flex;
   flex-wrap: wrap;
@@ -250,29 +286,39 @@ audio { display: none; }
   flex-wrap: wrap;
   margin-bottom: 0.75rem;
 }
-.field {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: #aaa;
+/* Quiet by default: these are settings you touch rarely, and they were shouting louder
+   than the music. Meaning lives in the tooltip and in which one is lit. */
+.icon-btn {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  line-height: 1;
   font-size: 0.85rem;
+  color: #8a8a98;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
 }
-.field select {
-  background: #2a2a35;
-  color: #eee;
-  border: 1px solid #444;
-  border-radius: 6px;
-  padding: 0.35rem 0.5rem;
-  font-size: 0.9rem;
+.icon-btn:hover { color: #e6e6ef; background: #24242e; border-color: #3a3a48; }
+.icon-btn.active {
+  color: #ffd9a0;
+  background: #2c2029;
+  border-color: #7a3a18;
 }
+.filter-group { display: flex; gap: 0.15rem; }
 
-.pagination {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin: 0.75rem 0;
+#list-info {
+  color: #6e6e7c;
+  font-size: 0.78rem;
+  margin: 0.6rem 0.2rem;
 }
-.pagination span { color: #aaa; font-size: 0.9rem; }
+#feed-sentinel { height: 1px; }
+#feed-end {
+  color: #55555f;
+  font-size: 0.78rem;
+  text-align: center;
+  padding: 1.5rem 0 0.5rem;
+}
 
 .chip-row { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .chip {
@@ -510,6 +556,4 @@ audio { display: none; }
   }
   #radio-btn svg { width: 26px; height: 26px; }
 
-  .pagination { flex-wrap: wrap; gap: 0.5rem; }
-  .pagination span { flex-basis: 100%; order: -1; }
 }

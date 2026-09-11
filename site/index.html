@@ -13,6 +13,14 @@
   </header>
 
   <main>
+    <div id="post-context" hidden>
+      <div class="post-context-head">
+        <span id="post-context-date"></span>
+        <a id="post-context-link" target="_blank" rel="noopener" title="Открыть пост в Telegram">↗</a>
+      </div>
+      <div id="post-context-text"></div>
+    </div>
+
     <div class="player">
       <img id="artwork" class="empty" alt="" />
       <div class="now-playing">
@@ -46,22 +54,13 @@
     </div>
 
     <div id="toolbar">
-      <label class="field">
-        Сортировка
-        <select id="sort-select">
-          <option value="new">Сначала новые</option>
-          <option value="old">Сначала старые</option>
-        </select>
-      </label>
+      <button id="sort-btn" class="icon-btn" type="button" title="Сначала новые">↓</button>
 
-      <label class="field">
-        Фильтр
-        <select id="filter-select">
-          <option value="all">Все посты</option>
-          <option value="liked">Мои лайки</option>
-          <option value="categories">По категориям</option>
-        </select>
-      </label>
+      <div class="filter-group" role="group" aria-label="Фильтр">
+        <button class="icon-btn" data-filter="all" type="button" title="Все посты">☰</button>
+        <button class="icon-btn" data-filter="liked" type="button" title="Только мои лайки">👍</button>
+        <button class="icon-btn" data-filter="categories" type="button" title="По категориям">#</button>
+      </div>
 
       <div id="category-filter" class="chip-row" hidden></div>
     </div>
@@ -77,19 +76,12 @@
       </div>
     </div>
 
-    <div id="pagination" class="pagination">
-      <button id="page-prev">← Пред.</button>
-      <span id="page-info"></span>
-      <button id="page-next">След. →</button>
-    </div>
+    <div id="list-info"></div>
 
     <div id="post-list"></div>
 
-    <div id="pagination-bottom" class="pagination">
-      <button id="page-prev-bottom">← Пред.</button>
-      <span id="page-info-bottom"></span>
-      <button id="page-next-bottom">След. →</button>
-    </div>
+    <div id="feed-sentinel" aria-hidden="true"></div>
+    <div id="feed-end" hidden>Это всё</div>
   </main>
 
   <script src="app.js"></script>
