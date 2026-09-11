@@ -43,6 +43,14 @@ button {
   cursor: pointer;
   font-size: 0.9rem;
 }
+/* Controls are not text: without this a click that drifts a pixel, or a double click,
+   selects the glyph and paints a rectangular highlight inside a round button. The tap
+   highlight does the same thing on touch, in its own square. */
+button {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
 button:hover { background: #3a3a48; }
 button:disabled { opacity: 0.4; cursor: default; }
 .buy-link {
