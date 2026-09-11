@@ -25,12 +25,12 @@ const categoryCreateForm = document.getElementById("category-create-form");
 const categoryNameInput = document.getElementById("category-name-input");
 const postListEl = document.getElementById("post-list");
 const listInfoEl = document.getElementById("list-info");
-const feedSentinelEl = document.getElementById("feed-sentinel");
 const feedEndEl = document.getElementById("feed-end");
 
 const UI_PREFS_KEY = "rd_player_prefs_v1";
-const PAGE_SIZE = 20; // posts appended per step - the channel has thousands of tracks,
+const PAGE_SIZE = 30; // posts appended per step - the channel has thousands of tracks,
 // so rendering the whole filtered list at once would make the page unusably heavy.
+const LOAD_AHEAD = 3; // posts left below the fold when the next batch starts loading
 
 let posts = [];
 let categories = [];
@@ -214,19 +214,18 @@ function activatePlayback(ref) {
   if (timeCurrentEl) timeCurrentEl.textContent = "0:00";
   audio.play();
   updateNowPlaying(track);
-  revealCurrentPage();
-  renderPostList();
+  highlightCurrentTrack();
 }
 
-function revealCurrentPage() {
+// Moving the highlight used to rebuild every card on the page - half a second of frozen
+// ui after 400 posts, and over a second once the disco had grown the feed to 800. The
+// highlight is two class changes; the list has no reason to be touched.
+function highlightCurrentTrack() {
+  const previous = postListEl.querySelector(".track-row.playing");
+  if (previous) previous.classList.remove("playing");
   if (!current) return;
-  const active = computeActiveList();
-  const idx = active.findIndex((p) => String(p.message_id) === String(current.messageId));
-  // The disco happily picks a track eight hundred posts down; grow the feed far
-  // enough that the row it is playing actually exists on the page.
-  if (idx !== -1 && idx >= shownCount) {
-    shownCount = Math.ceil((idx + 1) / PAGE_SIZE) * PAGE_SIZE;
-  }
+  const row = postListEl.querySelector(`.track-row[data-track-id="${current.trackId}"]`);
+  if (row) row.classList.add("playing");
 }
 
 function playNewRef(ref) {
@@ -584,7 +583,19 @@ function toggleLike(post) {
   if (master.liked) userData.post_likes[String(post.message_id)] = true;
   else delete userData.post_likes[String(post.message_id)];
   saveUserData();
-  renderPostList();
+  // Under the "liked" filter the card itself appears or disappears, so the list has to
+  // be rebuilt; otherwise only one button changed.
+  if (filterMode === "liked") {
+    renderPostList();
+    return;
+  }
+  const btn = postListEl.querySelector(`.like-btn[data-post-id="${post.message_id}"]`);
+  if (btn) {
+    btn.classList.toggle("liked", master.liked);
+    btn.title = master.liked
+      ? "Убрать лайк (хранится только в этом браузере)"
+      : "Лайкнуть пост (сохранится только в этом браузере)";
+  }
 }
 
 // --- categories ---------------------------------------------------------------
@@ -773,7 +784,7 @@ document.addEventListener("click", (e) => {
 function renderPostList() {
   const active = computeActiveList();
   if (shownCount < PAGE_SIZE) shownCount = PAGE_SIZE;
-  const visible = active.slice(0, shownCount);
+  shownCount = Math.min(shownCount, Math.max(active.length, PAGE_SIZE));
 
   postListEl.innerHTML = "";
   if (!active.length) {
@@ -782,53 +793,75 @@ function renderPostList() {
     hint.textContent = "Ничего не найдено";
     postListEl.appendChild(hint);
   } else {
-    visible.forEach((post) => postListEl.appendChild(renderPostCard(post)));
+    appendCards(active, 0, shownCount);
   }
-
-  if (listInfoEl) {
-    listInfoEl.textContent = active.length
-      ? `${visible.length} из ${active.length} постов`
-      : "Постов пока нет";
-  }
-  if (feedEndEl) feedEndEl.hidden = !active.length || visible.length < active.length;
-  // The sentinel sits below the list; while it is on screen the feed keeps growing.
-  if (feedSentinelEl) feedSentinelEl.hidden = visible.length >= active.length;
-  maybeGrowFeed();
+  updateFeedTail(active);
+  topUpFeed();
 }
 
 // --- endless feed -------------------------------------------------------------------
-// Paging through 50 pages to reach an album is not how anyone browses a channel. The
-// list just keeps going; it grows a screenful at a time so the dom never holds 8000
-// track rows at once.
+// Paging through fifty pages to reach an album is not how anyone browses a channel, so
+// the list just keeps going. Two rules keep it from bogging down: new posts are appended
+// to what is already on screen rather than rebuilt from scratch (rebuilding every time
+// made scrolling slower the further down you got), and the dom never holds the whole
+// channel - only as far as the reader has actually gone.
 
-function growFeed() {
+function appendCards(active, from, to) {
+  const batch = document.createDocumentFragment();
+  active.slice(from, to).forEach((post) => batch.appendChild(renderPostCard(post)));
+  postListEl.appendChild(batch);
+}
+
+function updateFeedTail(active) {
+  const shown = Math.min(shownCount, active.length);
+  if (listInfoEl) {
+    listInfoEl.textContent = active.length
+      ? `${shown} из ${active.length} постов`
+      : "Постов пока нет";
+  }
+  if (feedEndEl) feedEndEl.hidden = !active.length || shown < active.length;
+}
+
+function appendMorePosts() {
   const active = computeActiveList();
   if (shownCount >= active.length) return false;
-  shownCount += PAGE_SIZE;
-  renderPostList();
+  const from = shownCount;
+  shownCount = Math.min(shownCount + PAGE_SIZE, active.length);
+  appendCards(active, from, shownCount);
+  updateFeedTail(active);
   return true;
 }
 
-function maybeGrowFeed() {
-  if (!feedSentinelEl || feedSentinelEl.hidden) return;
-  // Short lists (or a tall screen) can leave the sentinel visible after a render, and
-  // an observer only fires on change - so top the feed up until it is off screen.
-  const rect = feedSentinelEl.getBoundingClientRect();
-  if (rect.top < window.innerHeight + 400) {
-    if (growFeed()) return;
+// Start loading while LOAD_AHEAD posts are still below the fold, so the next batch is
+// usually there by the time the reader reaches it.
+function feedWantsMore() {
+  const cards = postListEl.children;
+  if (!cards.length) return false;
+  const trigger = cards[Math.max(0, cards.length - LOAD_AHEAD)];
+  return trigger.getBoundingClientRect().top <= window.innerHeight;
+}
+
+function topUpFeed() {
+  // A tall window can swallow a whole batch at once; guard so this cannot run away.
+  for (let i = 0; i < 5 && feedWantsMore(); i++) {
+    if (!appendMorePosts()) break;
   }
 }
 
-if (feedSentinelEl && "IntersectionObserver" in window) {
-  new IntersectionObserver(
-    (entries) => {
-      if (entries.some((e) => e.isIntersecting)) growFeed();
-    },
-    { rootMargin: "600px 0px" }
-  ).observe(feedSentinelEl);
-} else {
-  window.addEventListener("scroll", maybeGrowFeed, { passive: true });
+let feedTickScheduled = false;
+function onFeedScroll() {
+  // A short timer rather than requestAnimationFrame: rAF stops firing when the tab is
+  // not painting, and the feed would then quietly refuse to grow.
+  if (feedTickScheduled) return;
+  feedTickScheduled = true;
+  setTimeout(() => {
+    feedTickScheduled = false;
+    topUpFeed();
+  }, 80);
 }
+
+window.addEventListener("scroll", onFeedScroll, { passive: true });
+window.addEventListener("resize", onFeedScroll);
 
 
 function renderPostCard(post) {
@@ -862,6 +895,7 @@ function renderPostCard(post) {
   if (post.message_id != null) {
     const likeBtn = document.createElement("button");
     likeBtn.className = "like-btn" + (post.liked ? " liked" : "");
+    likeBtn.dataset.postId = post.message_id;
     likeBtn.textContent = "👍";
     likeBtn.title = post.liked
       ? "Убрать лайк (хранится только в этом браузере)"
@@ -909,6 +943,7 @@ function renderTrackRow(post, track) {
   const row = document.createElement("div");
   const isPlaying = current && current.trackId === track.id;
   row.className = "track-row" + (isPlaying ? " playing" : "");
+  row.dataset.trackId = track.id;
 
   const img = document.createElement("img");
   img.src = track.thumbnail || "";
