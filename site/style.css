@@ -168,6 +168,7 @@ a.album-name:hover { color: #ffb070; }
 }
 
 .player {
+  position: relative;
   --cut: 13px;
   display: flex;
   flex-wrap: wrap;
@@ -459,9 +460,16 @@ audio { display: none; }
 /* --- post cards ----------------------------------------------------------------- */
 #post-list { display: flex; flex-direction: column; gap: 1rem; }
 .post-card {
+  position: relative;
   background: #1e1e26;
   border-radius: 3px;
   padding: 0.9rem 1.1rem;
+  /* The feed only grows - a few screens in it is a hundred cards and ten thousand
+     nodes, and every one of them was being laid out and painted on every frame.
+     This one skips all of that for anything off screen; `auto` in the size hint lets
+     the browser remember what each card actually measured, so the scrollbar behaves. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 600px;
 }
 .post-card-header {
   display: flex;
@@ -657,14 +665,25 @@ audio { display: none; }
   border: 1px solid transparent;
   border-radius: 3px;
 }
-.like-btn svg { width: 66%; height: 66%; fill: #55555f; transition: fill 0.12s ease; }
+/* One icon repeated a thousand times down the feed, so it is a mask rather than an
+   svg element: the shape is fetched once and cached, and each row costs a box with a
+   background colour instead of 3KB of path data in the dom. */
+.like-btn::before {
+  content: "";
+  width: 66%;
+  height: 66%;
+  background-color: #55555f;
+  transition: background-color 0.12s ease;
+  -webkit-mask: url("heart.svg") no-repeat center / contain;
+  mask: url("heart.svg") no-repeat center / contain;
+}
 .like-btn:hover { background: #24242e; border-color: #3a3a48; }
-.like-btn:hover svg { fill: #b3332a; }
-.like-btn.liked svg { fill: #c2402f; }
+.like-btn:hover::before { background-color: #b3332a; }
+.like-btn.liked::before { background-color: #c2402f; }
 /* The player's heart sits among the transport controls, so it behaves like one:
    the row's transparent-until-hovered treatment reads as a hole in the strip. */
 #now-like:hover:not(:disabled) { background: #3a3a48; }
-.like-btn.liked:hover svg { fill: #e05a44; }
+.like-btn.liked:hover::before { background-color: #e05a44; }
 
 #precious-btn {
   display: flex;
@@ -704,7 +723,7 @@ audio { display: none; }
 }
 /* A heart in a track row has no socket to sink into - it flares instead. */
 .like-btn:active:not(:disabled) { transform: translateY(1px) scale(0.88); }
-.like-btn:active:not(:disabled) svg { filter: drop-shadow(0 0 6px hsl(4 85% 55% / 0.85)); }
+.like-btn:active:not(:disabled)::before { filter: drop-shadow(0 0 6px hsl(4 85% 55% / 0.85)); }
 /* The disco button carries a running animation, so its glow is spoken for. It sinks. */
 #radio-btn:active { transform: translateY(2px) scale(0.985); }
 
