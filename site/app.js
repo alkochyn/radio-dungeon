@@ -529,7 +529,7 @@ function updateModeButtons() {
   radioBtn.classList.toggle("active", radioMode);
   radioBtn.title = radioMode
     ? "Боги Хаоса выбирают — нажми, чтобы остановить"
-    : "Играть как боги Хаоса решат";
+    : "Боги Хаоса определят очередность треков";
 }
 
 // A different one of these in the empty artwork slot every visit - the player should
