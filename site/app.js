@@ -800,7 +800,7 @@ function renderAlbumHeading(track) {
 
 function setLikeButtonState(btn, liked) {
   btn.classList.toggle("liked", liked);
-  btn.title = liked ? "Убрать из «Моей прелести»" : "В «Мою прелесть»";
+  btn.title = liked ? "Убрать лайк" : "Лайк";
   btn.setAttribute("aria-label", btn.title);
   btn.setAttribute("aria-pressed", String(liked));
 }
