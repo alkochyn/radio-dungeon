@@ -235,7 +235,30 @@ function playNewRef(ref) {
 
 function updateNowPlaying(track) {
   nowTitle.textContent = track.title;
-  nowArtist.textContent = track.artist || "";
+  // Second line carries whose album this is - the track name alone says nothing about
+  // where it came from, and that is what the channel is recommending.
+  nowArtist.textContent = "";
+  if (track.artist) {
+    nowArtist.appendChild(document.createTextNode(track.artist));
+  }
+  if (track.album) {
+    if (track.artist) {
+      nowArtist.appendChild(Object.assign(document.createElement("span"), {
+        className: "now-sep",
+        textContent: " — ",
+      }));
+    }
+    const album = document.createElement(track.album_url ? "a" : "span");
+    album.className = "now-album";
+    album.textContent = track.album;
+    if (track.album_url) {
+      album.href = track.album_url;
+      album.target = "_blank";
+      album.rel = "noopener";
+      album.title = "Открыть альбом на bandcamp";
+    }
+    nowArtist.appendChild(album);
+  }
   // An <img> with src="" resolves to the page itself and can draw a broken-image icon,
   // so drop the attribute entirely and let the css placeholder show through.
   if (track.thumbnail) {
@@ -907,24 +930,8 @@ function renderAlbumHeading(track) {
   const heading = document.createElement("div");
   heading.className = "album-heading";
 
-  if (track.artist) {
-    heading.appendChild(
-      Object.assign(document.createElement("span"), {
-        className: "album-artist",
-        textContent: track.artist,
-      })
-    );
-  }
   if (track.album) {
-    if (track.artist) {
-      heading.appendChild(
-        Object.assign(document.createElement("span"), {
-          className: "album-sep",
-          textContent: "—",
-        })
-      );
-    }
-    const name = document.createElement(track.album_url ? "a" : "span");
+    const name = document.createElement(track.album_url ? "a" : "div");
     name.className = "album-name";
     name.textContent = track.album;
     if (track.album_url) {
@@ -934,6 +941,16 @@ function renderAlbumHeading(track) {
       name.title = "Открыть альбом на bandcamp";
     }
     heading.appendChild(name);
+  }
+  if (track.artist) {
+    const by = document.createElement("div");
+    by.className = "album-artist";
+    by.appendChild(Object.assign(document.createElement("span"), {
+      className: "album-by",
+      textContent: "by ",
+    }));
+    by.appendChild(document.createTextNode(track.artist));
+    heading.appendChild(by);
   }
   return heading;
 }

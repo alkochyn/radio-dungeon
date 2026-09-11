@@ -55,17 +55,19 @@ button:hover { background: #3a3a48; }
 button:disabled { opacity: 0.4; cursor: default; }
 /* Between the post text and its tracks: who made this and what it is called. */
 .album-heading {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin: 0.9rem 0 0.4rem;
-  font-size: 0.88rem;
+  margin: 1.1rem 0 0.5rem;
+  line-height: 1.25;
 }
-.album-artist { color: #d8d8e4; font-weight: 600; }
-.album-sep { color: #55555f; }
-.album-name { color: #b9b9c6; font-style: italic; text-decoration: none; }
+.album-name {
+  display: block;
+  color: #f0f0f6;
+  font-size: 1.15rem;
+  font-weight: 600;
+  text-decoration: none;
+}
 a.album-name:hover { color: #ffb070; }
+.album-artist { color: #a9a9b8; font-size: 0.92rem; }
+.album-by { color: #6d6d7a; }
 
 .buy-link {
   flex: none;
@@ -172,8 +174,11 @@ a.album-name:hover { color: #ffb070; }
    with the button burning next to it. */
 #artwork.empty { background-size: 62%; }
 .now-playing { flex: 1; min-width: 0; }
-#now-title { font-weight: 600; }
+#now-title { font-weight: 600; font-size: 1.05rem; }
 #now-artist { color: #aaa; font-size: 0.9rem; margin-bottom: 0.5rem; }
+.now-sep { color: #6d6d7a; }
+.now-album { color: #c0c0cc; text-decoration: none; }
+a.now-album:hover { color: #ffb070; }
 audio { display: none; }
 
 /* --- transport ------------------------------------------------------------------
