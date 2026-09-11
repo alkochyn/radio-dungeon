@@ -182,7 +182,7 @@ audio { display: none; }
   appearance: none;
   cursor: pointer;
 }
-/* The played part burns, the rest is cold - same language as the Chaos Radio button. */
+/* The played part burns, the rest is cold - same language as the disco button. */
 #seek::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 2px;
@@ -215,7 +215,7 @@ audio { display: none; }
 #seek:focus-visible { outline: 2px solid #c2521f; outline-offset: 4px; }
 .controls { margin-top: 0.5rem; display: flex; gap: 0.4rem; flex-wrap: wrap; }
 .controls button { padding: 0.5rem 0.7rem; }
-/* --- Chaos Radio ---------------------------------------------------------------
+/* --- Chaos Moon Disco ----------------------------------------------------------
    Deliberately not one of the transport buttons: it is not "one more way to skip a
    track", it is the whole channel on fire. So it sits apart and looks it. */
 #radio-btn {

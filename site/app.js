@@ -223,7 +223,7 @@ function revealCurrentPage() {
   if (!current) return;
   const active = computeActiveList();
   const idx = active.findIndex((p) => String(p.message_id) === String(current.messageId));
-  // Chaos Radio happily picks a track eight hundred posts down; grow the feed far
+  // The disco happily picks a track eight hundred posts down; grow the feed far
   // enough that the row it is playing actually exists on the page.
   if (idx !== -1 && idx >= shownCount) {
     shownCount = Math.ceil((idx + 1) / PAGE_SIZE) * PAGE_SIZE;
@@ -500,7 +500,7 @@ function updateModeButtons() {
   repeatBtn.classList.toggle("inert", radioMode);
   const labels = { none: "выкл", post: "пост", track: "трек" };
   repeatBtn.title = radioMode
-    ? "Повтор недоступен, пока играет Chaos Radio"
+    ? "Повтор недоступен, пока играет Chaos Moon Disco"
     : `Повтор: ${labels[repeatMode]}`;
 }
 
