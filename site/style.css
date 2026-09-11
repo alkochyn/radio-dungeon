@@ -633,6 +633,21 @@ audio { display: none; }
   }
   body.player-docked #now-artist { display: none; }
   body.player-docked #now-title { font-size: 0.95rem; }
+  /* The bar gets one line instead of two, and the artist belongs on it: a title alone
+     names a track to whoever already knows the album. Built from the attribute app.js
+     writes, so it only exists while the player is actually docked. The margin is what
+     keeps it off the roof of the control strip. */
+  body.player-docked .now-playing[data-dock-line] #now-title { display: none; }
+  body.player-docked .now-playing[data-dock-line]::before {
+    content: attr(data-dock-line);
+    display: block;
+    margin-bottom: 0.2rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   body.player-docked .transport { padding: 0.35rem 0.5rem; }
 
   /* Docked, the block turns on its side and the disco moves into the transport strip

@@ -16,6 +16,7 @@ const prevBtn = document.getElementById("prev-btn");
 const nextBtn = document.getElementById("next-btn");
 const radioBtn = document.getElementById("radio-btn");
 const transportEl = document.querySelector(".transport");
+const nowPlayingEl = document.querySelector(".now-playing");
 const postListEl = document.getElementById("post-list");
 const playerSlot = document.getElementById("player-slot");
 const preciousBtn = document.getElementById("precious-btn");
@@ -270,6 +271,12 @@ function playNewRef(ref) {
 function updateNowPlaying(track) {
   nowTitle.textContent = track.title;
   updateNowLike();
+  // Docked there is room for one line, and the artist is half of what names a track,
+  // so the bar reads "artist - title". Kept as an attribute rather than a second
+  // element: css picks it up with attr(), and nothing here has to know about docking.
+  if (nowPlayingEl) {
+    nowPlayingEl.dataset.dockLine = [track.artist, track.title].filter(Boolean).join(" — ");
+  }
   // Second line carries whose album this is - the track name alone says nothing about
   // where it came from, and that is what the channel is recommending.
   nowArtist.textContent = "";
