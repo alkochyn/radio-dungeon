@@ -25,6 +25,15 @@ header {
   flex-wrap: wrap;
 }
 h1 { font-size: 1.1rem; margin: 0; letter-spacing: 0.02em; }
+/* The title is ascii art - a sword - and it sagged. Not a font problem: =, the guard
+   and the chevron tip are all drawn around the math axis (~0.25em above the baseline)
+   while capitals are centred near 0.35em, so the blade hangs below the lettering in
+   every face. Measured at 2-2.5px against 24px text; lifting by that much in em keeps
+   it level at any size. */
+.blade {
+  position: relative;
+  top: -0.09em;
+}
 button {
   background: #2a2a35;
   color: #eee;
@@ -36,7 +45,6 @@ button {
 }
 button:hover { background: #3a3a48; }
 button:disabled { opacity: 0.4; cursor: default; }
-#data-note { margin-left: auto; color: #777; font-size: 0.8rem; }
 .buy-link {
   flex: none;
   margin-left: 0.5rem;
@@ -66,15 +74,15 @@ button:disabled { opacity: 0.4; cursor: default; }
   margin-bottom: 0.75rem;
   cursor: pointer;
 }
-.post-context-head {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  color: #7b7b8a;
-  font-size: 0.75rem;
-  margin-bottom: 0.35rem;
+#post-context { position: relative; }
+#post-context-link {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.8rem;
+  color: #6e6e7c;
+  text-decoration: none;
+  font-size: 0.85rem;
 }
-#post-context-link { color: #8a8a9a; text-decoration: none; }
 #post-context-link:hover { color: #ffb070; }
 #post-context-text {
   color: #c8c8d4;

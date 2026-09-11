@@ -1,5 +1,4 @@
 const audio = document.getElementById("audio");
-const dataNote = document.getElementById("data-note");
 const nowTitle = document.getElementById("now-title");
 const nowArtist = document.getElementById("now-artist");
 const artwork = document.getElementById("artwork");
@@ -10,7 +9,6 @@ const timeCurrentEl = document.getElementById("time-current");
 const timeTotalEl = document.getElementById("time-total");
 const muteBtn = document.getElementById("mute-btn");
 const postContextEl = document.getElementById("post-context");
-const postContextDateEl = document.getElementById("post-context-date");
 const postContextLinkEl = document.getElementById("post-context-link");
 const postContextTextEl = document.getElementById("post-context-text");
 const prevPostBtn = document.getElementById("prev-post-btn");
@@ -138,19 +136,10 @@ async function loadPosts() {
       categories: (userData.track_categories[t.id] || []).slice(),
     })),
   }));
-  updateDataNote();
 }
 
 function loadCategories() {
   categories = userData.categories;
-}
-
-function updateDataNote() {
-  if (!dataNote || !dataGeneratedAt) return;
-  const hours = (Date.now() / 1000 - dataGeneratedAt) / 3600;
-  const when =
-    hours < 1 ? "только что" : hours < 24 ? `${Math.round(hours)} ч назад` : `${Math.round(hours / 24)} дн назад`;
-  dataNote.textContent = `список обновлён ${when}`;
 }
 
 async function refreshPosts() {
@@ -275,9 +264,6 @@ function showPostContext() {
     return;
   }
   postContextTextEl.textContent = post.message_text;
-  postContextDateEl.textContent = post.message_date
-    ? new Date(post.message_date).toLocaleString("ru-RU")
-    : "";
   if (post.telegram_url) {
     postContextLinkEl.href = post.telegram_url;
     postContextLinkEl.hidden = false;
@@ -388,6 +374,7 @@ function neighborPost(delta) {
 }
 
 function goToPost(delta) {
+  stopRadio();
   const post = neighborPost(delta);
   if (!post || !post.tracks.length) return;
   playNewRef({ messageId: post.message_id, trackId: post.tracks[0].id });
@@ -525,18 +512,26 @@ repeatBtn?.addEventListener("click", () => {
 });
 
 radioBtn?.addEventListener("click", () => {
-  radioMode = !radioMode;
-  if (radioMode) {
-    repeatMode = "none";
-    saveUiPrefs();
-    // Starting the radio is an action, not a setting: it plays something at once
-    // rather than waiting for the listener to also pick a track.
-    radioBag = [];
-    const ref = pickRandomFromChannel();
-    if (ref) playNewRef(ref);
-  }
+  // Always a roll of the dice, never a switch you have to find your way back out of:
+  // pressing it again reshuffles and throws you somewhere else in the channel. The way
+  // out is to pick a track yourself - see stopRadio().
+  radioMode = true;
+  repeatMode = "none";
+  saveUiPrefs();
+  radioBag = [];
+  const ref = pickRandomFromChannel();
+  if (ref) playNewRef(ref);
   updateModeButtons();
 });
+
+// Choosing a specific track or post is the listener overruling chaos, so the radio
+// steps aside rather than hijacking whatever they picked once it ends.
+function stopRadio() {
+  if (!radioMode) return;
+  radioMode = false;
+  radioBag = [];
+  updateModeButtons();
+}
 
 // --- likes ------------------------------------------------------------------------
 
@@ -939,7 +934,10 @@ function renderTrackRow(post, track) {
   wrap.appendChild(catBtn);
   row.appendChild(wrap);
 
-  row.addEventListener("click", () => playNewRef({ messageId: post.message_id, trackId: track.id }));
+  row.addEventListener("click", () => {
+    stopRadio();
+    playNewRef({ messageId: post.message_id, trackId: track.id });
+  });
 
   return row;
 }
@@ -1068,5 +1066,4 @@ function showFailure(title, hint) {
   );
   box.appendChild(Object.assign(document.createElement("div"), { textContent: hint }));
   host.appendChild(box);
-  if (dataNote) dataNote.textContent = "плеер недоступен";
 }
