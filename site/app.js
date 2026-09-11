@@ -14,15 +14,9 @@ const postContextTextEl = document.getElementById("post-context-text");
 const prevBtn = document.getElementById("prev-btn");
 const nextBtn = document.getElementById("next-btn");
 const radioBtn = document.getElementById("radio-btn");
-const sortBtn = document.getElementById("sort-btn");
-const filterBtns = Array.from(document.querySelectorAll("[data-filter]"));
-const categoryFilterEl = document.getElementById("category-filter");
-const categoryManagerToggle = document.getElementById("category-manager-toggle");
-const categoryManagerBody = document.getElementById("category-manager-body");
-const categoryManageListEl = document.getElementById("category-manage-list");
-const categoryCreateForm = document.getElementById("category-create-form");
-const categoryNameInput = document.getElementById("category-name-input");
 const postListEl = document.getElementById("post-list");
+const preciousBtn = document.getElementById("precious-btn");
+const preciousCountEl = document.getElementById("precious-count");
 const listInfoEl = document.getElementById("list-info");
 const feedEndEl = document.getElementById("feed-end");
 
@@ -32,11 +26,8 @@ const PAGE_SIZE = 30; // posts appended per step - the channel has thousands of 
 const LOAD_AHEAD = 3; // posts left below the fold when the next batch starts loading
 
 let posts = [];
-let categories = [];
 
 let sortOrder = "new"; // 'new' | 'old'
-let filterMode = "all"; // 'all' | 'liked' | 'categories'
-let selectedCategoryIds = new Set();
 let placeholderIcon = "none"; // set once at startup, see rollPlaceholderIcon()
 let radioMode = false;
 let radioBag = []; // tracks not yet played in the current radio round
@@ -49,14 +40,9 @@ let shownCount = PAGE_SIZE; // how far down the feed we have rendered so far
 
 let pollTimer = null;
 
-let openPopoverEl = null;
-let openPopoverKey = null;
-let popoverNeedsRerender = false;
 
 // --- persistence of UI preferences (filter/sort/repeat) --------------------------
-// Likes and category assignments already live server-side in user_data.json, kept
-// separate from tracks.json so a resync can't wipe them. This only remembers small
-// per-browser display preferences.
+// Small per-browser display preferences. What you liked lives under its own key.
 
 function loadUiPrefs() {
   try {
@@ -64,8 +50,6 @@ function loadUiPrefs() {
     if (!raw) return;
     const p = JSON.parse(raw);
     if (p.sortOrder) sortOrder = p.sortOrder;
-    if (p.filterMode) filterMode = p.filterMode;
-    if (Array.isArray(p.selectedCategoryIds)) selectedCategoryIds = new Set(p.selectedCategoryIds);
   } catch (e) {
     // corrupt or blocked storage - just fall back to defaults
   }
@@ -77,8 +61,6 @@ function saveUiPrefs() {
       UI_PREFS_KEY,
       JSON.stringify({
         sortOrder,
-        filterMode,
-        selectedCategoryIds: Array.from(selectedCategoryIds),
       })
     );
   } catch (e) {
@@ -88,20 +70,20 @@ function saveUiPrefs() {
 
 // --- data loading -------------------------------------------------------------
 
-// Likes and categories used to live server-side in user_data.json. There is no
-// server here, so they stay in this browser - which is the only place they were ever
-// needed: nothing personal has ever left the machine.
+// One collection, kept in this browser: the tracks you liked. Album likes and
+// user-named categories are gone, and their old key is left untouched rather than
+// migrated - it held albums and folders, neither of which this means.
 
-const USER_DATA_KEY = "rd_player_user_data_v1";
-let userData = { post_likes: {}, categories: [], track_categories: {} };
+const LIKED_KEY = "rd_player_liked_v1";
+let likedIds = new Set();
 
 let dataGeneratedAt = 0;
 let dataExpiresAt = 0;
 
 function loadUserData() {
   try {
-    const raw = localStorage.getItem(USER_DATA_KEY);
-    if (raw) userData = Object.assign(userData, JSON.parse(raw));
+    const raw = localStorage.getItem(LIKED_KEY);
+    if (raw) likedIds = new Set(JSON.parse(raw));
   } catch (e) {
     // corrupt or blocked storage - start empty rather than break the player
   }
@@ -109,7 +91,7 @@ function loadUserData() {
 
 function saveUserData() {
   try {
-    localStorage.setItem(USER_DATA_KEY, JSON.stringify(userData));
+    localStorage.setItem(LIKED_KEY, JSON.stringify([...likedIds]));
   } catch (e) {
     // storage unavailable - likes just won't survive a reload
   }
@@ -127,18 +109,7 @@ async function loadPosts({ force = false } = {}) {
   const payload = await res.json();
   dataGeneratedAt = payload.generated_at || 0;
   dataExpiresAt = payload.expires_at || 0;
-  posts = (payload.posts || []).map((post) => ({
-    ...post,
-    liked: Boolean(userData.post_likes[String(post.message_id)]),
-    tracks: post.tracks.map((t) => ({
-      ...t,
-      categories: (userData.track_categories[t.id] || []).slice(),
-    })),
-  }));
-}
-
-function loadCategories() {
-  categories = userData.categories;
+  posts = payload.posts || [];
 }
 
 async function refreshPosts() {
@@ -163,29 +134,72 @@ function findTrack(trackId) {
 // what next/prev are allowed to play - nothing outside it is ever picked.
 
 function computeActiveList() {
-  let list = posts.map((post) => {
-    let tracks = post.tracks;
-    if (filterMode === "categories" && selectedCategoryIds.size) {
-      const required = Array.from(selectedCategoryIds);
-      tracks = tracks.filter((t) => required.every((cid) => t.categories.includes(cid)));
-    }
-    return { ...post, tracks };
-  });
+  if (preciousMode) return [preciousPost()];
 
-  if (filterMode === "liked") {
-    list = list.filter((p) => p.liked);
-  } else if (filterMode === "categories" && selectedCategoryIds.size) {
-    list = list.filter((p) => p.tracks.length > 0);
-  }
-
+  const list = posts.slice();
   list.sort((a, b) => {
     const da = a.message_date ? new Date(a.message_date).getTime() : 0;
     const db = b.message_date ? new Date(b.message_date).getTime() : 0;
     return sortOrder === "new" ? db - da : da - db;
   });
-
   return list;
 }
+
+// --- my precious --------------------------------------------------------------------
+// Liked tracks, shaped as a single post so that next, previous and the disco keep
+// working on them without the playback engine knowing this view exists.
+
+let preciousMode = false;
+
+function likedTracks() {
+  const out = [];
+  posts.forEach((post) =>
+    post.tracks.forEach((t) => {
+      if (likedIds.has(t.id)) out.push(t);
+    })
+  );
+  return out;
+}
+
+function preciousPost() {
+  return {
+    message_id: "__precious__",
+    message_date: null,
+    message_text: "",
+    telegram_url: null,
+    tracks: likedTracks(),
+  };
+}
+
+function toggleTrackLike(track) {
+  if (likedIds.has(track.id)) likedIds.delete(track.id);
+  else likedIds.add(track.id);
+  saveUserData();
+  updatePreciousButton();
+  if (preciousMode) {
+    renderPostList();
+    return;
+  }
+  const btn = postListEl.querySelector(`.like-btn[data-track-id="${track.id}"]`);
+  if (btn) setLikeButtonState(btn, likedIds.has(track.id));
+}
+
+function updatePreciousButton() {
+  if (!preciousBtn) return;
+  const count = likedIds.size;
+  preciousBtn.classList.toggle("active", preciousMode);
+  preciousBtn.setAttribute("aria-pressed", String(preciousMode));
+  preciousBtn.title = preciousMode ? "Вернуться к каналу" : "Показать залайканные треки";
+  if (preciousCountEl) preciousCountEl.textContent = count ? String(count) : "";
+}
+
+preciousBtn?.addEventListener("click", () => {
+  preciousMode = !preciousMode;
+  shownCount = PAGE_SIZE;
+  updatePreciousButton();
+  renderPostList();
+  window.scrollTo({ top: 0 });
+});
 
 function flattenActive(active) {
   const flat = [];
@@ -202,7 +216,7 @@ function tracksOfPostFromActive(active, messageId) {
 
 // --- playback engine ------------------------------------------------------------
 // `current` and `history` identify tracks by {messageId, trackId} rather than a flat
-// index, so pointers stay valid across re-renders (a like/category toggle or a resync
+// index, so pointers stay valid across re-renders (a like or a rebuild of the data
 // rebuilds `posts` but never invalidates existing ids).
 
 function activatePlayback(ref) {
@@ -598,214 +612,13 @@ function stopRadio() {
   updateModeButtons();
 }
 
-// --- likes ------------------------------------------------------------------------
-
-function toggleLike(post) {
-  const master = posts.find((p) => p.message_id === post.message_id);
-  if (!master) return;
-  master.liked = !master.liked;
-  if (master.liked) userData.post_likes[String(post.message_id)] = true;
-  else delete userData.post_likes[String(post.message_id)];
-  saveUserData();
-  // Under the "liked" filter the card itself appears or disappears, so the list has to
-  // be rebuilt; otherwise only one button changed.
-  if (filterMode === "liked") {
-    renderPostList();
-    return;
-  }
-  const btn = postListEl.querySelector(`.like-btn[data-post-id="${post.message_id}"]`);
-  if (btn) {
-    btn.classList.toggle("liked", master.liked);
-    btn.title = master.liked
-      ? "Убрать лайк (хранится только в этом браузере)"
-      : "Лайкнуть пост (сохранится только в этом браузере)";
-  }
-}
-
-// --- categories ---------------------------------------------------------------
-
-function setTrackCategory(track, catId, checked) {
-  // Update local state immediately (optimistic) rather than in the fetch callback -
-  // otherwise a click elsewhere just after toggling a checkbox can trigger a re-render
-  // before the request resolves, and the change would silently not show up yet.
-  const cats = new Set(track.categories);
-  if (checked) cats.add(catId);
-  else cats.delete(catId);
-  track.categories = Array.from(cats);
-  popoverNeedsRerender = true;
-  userData.track_categories[track.id] = track.categories;
-  saveUserData();
-}
-
-function togglePostCategory(post, catId, checked) {
-  // `post` here may be the filtered view (active list) - always bulk-apply against the
-  // full, unfiltered track list of the post, not just what's currently visible.
-  const master = posts.find((p) => p.message_id === post.message_id) || post;
-  master.tracks.forEach((t) => {
-    const cats = new Set(t.categories);
-    if (checked) cats.add(catId);
-    else cats.delete(catId);
-    t.categories = Array.from(cats);
-  });
-  popoverNeedsRerender = true;
-  master.tracks.forEach((t) => (userData.track_categories[t.id] = t.categories));
-  saveUserData();
-}
-
-function postCategoryChecked(post, catId) {
-  const master = posts.find((p) => p.message_id === post.message_id) || post;
-  return master.tracks.length > 0 && master.tracks.every((t) => t.categories.includes(catId));
-}
-
-function countTracksInCategory(catId) {
-  let n = 0;
-  posts.forEach((p) => p.tracks.forEach((t) => { if (t.categories.includes(catId)) n++; }));
-  return n;
-}
-
-function deleteCategory(catId) {
-  const cat = categories.find((c) => c.id === catId);
-  const usedBy = countTracksInCategory(catId);
-  if (usedBy > 0) {
-    const label = cat ? `«${cat.name}»` : "эта категория";
-    const trackWord = usedBy === 1 ? "трек" : usedBy < 5 ? "трека" : "треков";
-    const ok = confirm(`Категория ${label} назначена ${usedBy} ${trackWord}. Удалить её всё равно?`);
-    if (!ok) return;
-  }
-  categories = categories.filter((c) => c.id !== catId);
-  userData.categories = categories;
-  posts.forEach((p) =>
-    p.tracks.forEach((t) => {
-      t.categories = t.categories.filter((c) => c !== catId);
-      userData.track_categories[t.id] = t.categories;
-    })
-  );
-  selectedCategoryIds.delete(catId);
-  saveUserData();
-  saveUiPrefs();
-  renderCategoryManager();
-  renderCategoryFilterChips();
-  renderPostList();
-}
-
-categoryManagerToggle?.addEventListener("click", () => {
-  categoryManagerBody.hidden = !categoryManagerBody.hidden;
-  categoryManagerToggle.textContent = categoryManagerBody.hidden ? "Категории ▾" : "Категории ▴";
-});
-
-categoryCreateForm?.addEventListener("submit", (e) => {
-  e.preventDefault();
-  const name = categoryNameInput.value.trim();
-  if (!name) return;
-  const cat = { id: "c" + Date.now().toString(36), name };
-  categories.push(cat);
-  userData.categories = categories;
-  saveUserData();
-  categoryNameInput.value = "";
-  renderCategoryManager();
-  renderCategoryFilterChips();
-});
-
-function renderCategoryManager() {
-  categoryManageListEl.innerHTML = "";
-  if (!categories.length) {
-    const hint = document.createElement("span");
-    hint.className = "label";
-    hint.textContent = "пока нет категорий";
-    categoryManageListEl.appendChild(hint);
-    return;
-  }
-  categories.forEach((cat) => {
-    const chip = document.createElement("span");
-    chip.className = "chip";
-    chip.textContent = cat.name;
-    const del = document.createElement("span");
-    del.className = "del-cat";
-    del.textContent = " ×";
-    del.title = "Удалить категорию";
-    del.addEventListener("click", (e) => {
-      e.stopPropagation();
-      deleteCategory(cat.id);
-    });
-    chip.appendChild(del);
-    categoryManageListEl.appendChild(chip);
-  });
-}
-
-function renderCategoryFilterChips() {
-  categoryFilterEl.hidden = filterMode !== "categories";
-  categoryFilterEl.innerHTML = "";
-  categories.forEach((cat) => {
-    const chip = document.createElement("span");
-    chip.className = "chip" + (selectedCategoryIds.has(cat.id) ? " selected" : "");
-    chip.textContent = cat.name;
-    chip.addEventListener("click", () => {
-      if (selectedCategoryIds.has(cat.id)) selectedCategoryIds.delete(cat.id);
-      else selectedCategoryIds.add(cat.id);
-      saveUiPrefs();
-      shownCount = PAGE_SIZE;
-      renderCategoryFilterChips();
-      renderPostList();
-    });
-    categoryFilterEl.appendChild(chip);
-  });
-}
-
-// --- category picker popover ---------------------------------------------------
-// Anchored via a stable data-key + re-queried by that key on open, rather than a
-// captured DOM node, because a pending toggle flushes a full re-render (see
-// closePopover) which would otherwise leave the reference stale/detached.
-
-function closePopover() {
-  if (openPopoverEl) openPopoverEl.remove();
-  openPopoverEl = null;
-  openPopoverKey = null;
-  if (popoverNeedsRerender) {
-    popoverNeedsRerender = false;
-    renderPostList();
-  }
-}
-
-function openCategoryPopover(key, handlers) {
-  const wasOpenSameKey = openPopoverKey === key;
-  closePopover();
-  if (wasOpenSameKey) return;
-
-  const wrap = document.querySelector(`[data-cat-wrap="${CSS.escape(key)}"]`);
-  if (!wrap) return;
-
-  const pop = document.createElement("div");
-  pop.className = "cat-popover";
-  if (!categories.length) {
-    const empty = document.createElement("div");
-    empty.className = "empty";
-    empty.textContent = "Сначала создайте категорию";
-    pop.appendChild(empty);
-  }
-  categories.forEach((cat) => {
-    const label = document.createElement("label");
-    const cb = document.createElement("input");
-    cb.type = "checkbox";
-    cb.checked = handlers.isChecked(cat.id);
-    cb.addEventListener("change", () => handlers.onToggle(cat.id, cb.checked));
-    label.appendChild(cb);
-    label.appendChild(document.createTextNode(cat.name));
-    pop.appendChild(label);
-  });
-  wrap.appendChild(pop);
-  openPopoverEl = pop;
-  openPopoverKey = key;
-}
-
-document.addEventListener("click", (e) => {
-  if (openPopoverEl && !openPopoverEl.contains(e.target)) {
-    closePopover();
-  }
-});
-
 // --- rendering ------------------------------------------------------------------
 
 function renderPostList() {
+  if (preciousMode) {
+    renderPreciousList();
+    return;
+  }
   const active = computeActiveList();
   if (shownCount < PAGE_SIZE) shownCount = PAGE_SIZE;
   shownCount = Math.min(shownCount, Math.max(active.length, PAGE_SIZE));
@@ -821,6 +634,22 @@ function renderPostList() {
   }
   updateFeedTail(active);
   topUpFeed();
+}
+
+function renderPreciousList() {
+  const tracks = likedTracks();
+  postListEl.innerHTML = "";
+  if (!tracks.length) {
+    const hint = document.createElement("div");
+    hint.className = "empty-hint";
+    hint.textContent = "Пока пусто — жми на сердце у трека";
+    postListEl.appendChild(hint);
+  } else {
+    const post = preciousPost();
+    tracks.forEach((track) => postListEl.appendChild(renderTrackRow(post, track, null)));
+  }
+  if (listInfoEl) listInfoEl.textContent = "";
+  if (feedEndEl) feedEndEl.hidden = true;
 }
 
 // --- endless feed -------------------------------------------------------------------
@@ -913,42 +742,6 @@ function renderPostCard(post) {
   }
   header.appendChild(dateEl);
 
-  const actions = document.createElement("div");
-  actions.className = "post-actions";
-
-  if (post.message_id != null) {
-    const likeBtn = document.createElement("button");
-    likeBtn.className = "like-btn" + (post.liked ? " liked" : "");
-    likeBtn.dataset.postId = post.message_id;
-    likeBtn.textContent = "👍";
-    likeBtn.title = post.liked
-      ? "Убрать лайк (хранится только в этом браузере)"
-      : "Лайкнуть пост (сохранится только в этом браузере)";
-    likeBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      toggleLike(post);
-    });
-    actions.appendChild(likeBtn);
-
-    const wrap = document.createElement("span");
-    wrap.className = "cat-btn-wrap";
-    wrap.dataset.catWrap = `post:${post.message_id}`;
-    wrap.addEventListener("click", (e) => e.stopPropagation());
-    const catBtn = document.createElement("button");
-    catBtn.className = "post-cat-btn";
-    catBtn.type = "button";
-    catBtn.textContent = "+";
-    catBtn.title = "Весь пост в категорию";
-    catBtn.addEventListener("click", () => {
-      openCategoryPopover(`post:${post.message_id}`, {
-        isChecked: (catId) => postCategoryChecked(post, catId),
-        onToggle: (catId, checked) => togglePostCategory(post, catId, checked),
-      });
-    });
-    wrap.appendChild(catBtn);
-    actions.appendChild(wrap);
-  }
-  header.appendChild(actions);
   card.appendChild(header);
 
   if (post.message_text) {
@@ -1005,6 +798,13 @@ function renderAlbumHeading(track) {
   return heading;
 }
 
+function setLikeButtonState(btn, liked) {
+  btn.classList.toggle("liked", liked);
+  btn.title = liked ? "Убрать из «Моей прелести»" : "В «Мою прелесть»";
+  btn.setAttribute("aria-label", btn.title);
+  btn.setAttribute("aria-pressed", String(liked));
+}
+
 function renderTrackRow(post, track, headingArtist) {
   const row = document.createElement("div");
   const isPlaying = current && current.trackId === track.id;
@@ -1030,25 +830,6 @@ function renderTrackRow(post, track, headingArtist) {
     meta.appendChild(artistEl);
   }
 
-  if (track.categories.length) {
-    const catsEl = document.createElement("div");
-    catsEl.className = "cats chip-row";
-    track.categories.forEach((cid) => {
-      const cat = categories.find((c) => c.id === cid);
-      if (!cat) return;
-      const chip = document.createElement("span");
-      chip.className = "chip";
-      chip.textContent = cat.name;
-      chip.title = "Убрать из категории";
-      chip.addEventListener("click", (e) => {
-        e.stopPropagation();
-        setTrackCategory(track, cid, false);
-        chip.remove();
-      });
-      catsEl.appendChild(chip);
-    });
-    meta.appendChild(catsEl);
-  }
   row.appendChild(meta);
 
   // Bandcamp's model is listen-then-buy. A player that takes the plays and hides the
@@ -1063,23 +844,19 @@ function renderTrackRow(post, track, headingArtist) {
   buy.addEventListener("click", (e) => e.stopPropagation());
   row.appendChild(buy);
 
-  const wrap = document.createElement("span");
-  wrap.className = "cat-btn-wrap";
-  wrap.dataset.catWrap = `track:${track.id}`;
-  wrap.addEventListener("click", (e) => e.stopPropagation());
-  const catBtn = document.createElement("button");
-  catBtn.className = "track-cat-btn";
-  catBtn.type = "button";
-  catBtn.textContent = "+";
-  catBtn.title = "Категории трека";
-  catBtn.addEventListener("click", () => {
-    openCategoryPopover(`track:${track.id}`, {
-      isChecked: (catId) => track.categories.includes(catId),
-      onToggle: (catId, checked) => setTrackCategory(track, catId, checked),
-    });
+  // Icon: "heart organ" by Lorc, game-icons.net, CC BY 3.0
+  const like = document.createElement("button");
+  like.type = "button";
+  like.className = "like-btn";
+  like.dataset.trackId = track.id;
+  like.innerHTML =
+    '<svg viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M289.188 22.72c-6.5.162-12.792 2.26-17.594 7.124-.483.488-.916.983-1.344 1.5l-.188-.188c-17.848 22.67-35.71 51.21-45.718 83.094-11.197 35.67-12.8 74.75 5.687 114.78l-16.968 7.845c-14.305-30.974-17.807-61.916-14.53-90.97-8.475 4.99-16.412 11.178-23.688 18.314-22.368-29.2-49.978-56.593-76.5-76a22.762 22.762 0 0 0-4.813-3.69c-3.378-1.922-6.98-2.86-10.624-3.03a21.12 21.12 0 0 0-1.125-.03c-.38 0-.774.016-1.155.03-5.33.203-10.67 1.93-15.438 4.563-8.72 4.816-16.545 12.77-22.5 22.937-5.954 10.168-9.036 20.86-8.906 30.78.132 9.922 3.896 20.06 12.907 25.19.368.208.753.375 1.126.56l-.126.25c27.298 16.83 63.364 39.376 86.626 67.626-6.582 22.99-7.837 46.735-2.625 67.406 15.303 60.707 62.425 115.8 113.03 150.657 25.304 17.427 51.403 29.785 74.22 35.5 22.816 5.713 41.874 4.546 53.906-2.658 27.152-16.25 45.328-45.636 56.312-80.53a116.128 116.128 0 0 1-21.625 9.874c-35.777 12.102-78.105 8.732-113.624-10.062-35.52-18.794-64.105-53.724-70.53-103.22l18.53-2.405c5.673 43.69 29.907 72.772 60.75 89.092 30.844 16.32 68.41 19.18 98.875 8.875 30.465-10.304 53.67-32.64 59.033-68.906 4.434-29.985-3.865-70.527-33.844-121.374-19.14 2.18-38.67 6.368-56.626 11.563l-5.188-17.94c12.73-3.682 26.192-6.87 39.875-9.28 2.63.22 5.328.024 8.033-.72a23.19 23.19 0 0 0 2.937-1.03c.032-.005.062-.027.094-.03-.005-.008.004-.025 0-.032 8.222-3.55 13.437-11.472 15.906-20.032 2.76-9.57 2.698-20.724-.28-32.125-2.98-11.4-8.362-21.14-15.47-28.06-5.33-5.193-12.214-9.005-19.53-9.44a22.754 22.754 0 0 0-6.783.626l-.093-.406c-16.036 5.84-33.733 13.757-51 24.125-8.947 11.378-15.964 22.483-20.5 33.375-7.047 16.92-8.512 33.12-2.438 51.438l-17.72 5.906c-7.46-22.5-5.505-44.333 2.908-64.53 7.425-17.828 19.73-34.594 34.656-51.376l-.156-.157a22.353 22.353 0 0 0 1.812-1.624c7.286-7.377 8.24-18.11 5.844-27.78-2.395-9.67-8.032-19.274-16.313-27.657l-.062-.032c-8.27-8.358-17.777-14.095-27.375-16.532a38.233 38.233 0 0 0-7.344-1.125c-.464-.024-.942-.055-1.406-.06-.435-.007-.88-.012-1.313 0zm.656 18.624c.36 0 .755 0 1.156.03 1.07.084 2.28.308 3.656.657 5.51 1.4 12.564 5.332 18.72 11.564 6.154 6.23 10.07 13.385 11.468 19.03 1.398 5.647.36 8.778-1 10.157-1.362 1.38-4.27 2.37-9.78.97-5.512-1.4-12.565-5.362-18.72-11.594-6.155-6.23-10.07-13.385-11.47-19.03-1.398-5.647-.36-8.747 1-10.126.895-.905 2.445-1.648 4.97-1.656zm-208.156 58.78c1.09.03 1.962.298 2.593.657 1.685.96 3.395 3.504 3.47 9.19.075 5.684-1.918 13.503-6.344 21.06-4.426 7.56-10.314 13.22-15.406 16.032-5.092 2.813-8.378 2.615-10.063 1.657-1.684-.96-3.393-3.504-3.468-9.19-.076-5.684 1.916-13.535 6.343-21.093 4.426-7.557 10.314-13.187 15.406-16 2.545-1.406 4.643-2.064 6.31-2.25a8.445 8.445 0 0 1 1.157-.062zm109.937 1.282c-13 .075-26.444 5.487-34 14.125 6.848 7.143 13.47 14.445 19.78 21.876 7.846-5.784 16.262-10.73 25.19-14.594 1.14-4.79 2.448-9.514 3.905-14.156.432-1.375.887-2.73 1.344-4.094-4.97-2.18-10.548-3.188-16.22-3.156zm203.125 15.78c.272-.02.57-.02.875 0 1.826.14 4.258 1.214 7.313 4.19 4.072 3.966 8.222 10.9 10.437 19.374 2.215 8.474 2.018 16.63.406 22.22-1.61 5.588-4.068 7.798-5.936 8.31-1.87.514-4.865-.095-8.938-4.06-4.072-3.968-8.223-10.902-10.437-19.376-2.216-8.474-2.02-16.63-.408-22.22 1.612-5.588 4.07-7.798 5.938-8.31.234-.066.478-.106.75-.126z" /></svg>';
+  setLikeButtonState(like, likedIds.has(track.id));
+  like.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleTrackLike(track);
   });
-  wrap.appendChild(catBtn);
-  row.appendChild(wrap);
+  row.appendChild(like);
 
   row.addEventListener("click", () => {
     stopRadio();
@@ -1093,33 +870,6 @@ function renderTrackRow(post, track, headingArtist) {
 
 // Two dropdowns for five states was more form than the page needed; these say the same
 // thing in the same visual language as the rest of the controls.
-function syncToolbar() {
-  if (sortBtn) {
-    sortBtn.textContent = sortOrder === "new" ? "↓" : "↑";
-    sortBtn.title = sortOrder === "new" ? "Сначала новые" : "Сначала старые";
-  }
-  filterBtns.forEach((b) => b.classList.toggle("active", b.dataset.filter === filterMode));
-}
-
-sortBtn?.addEventListener("click", () => {
-  sortOrder = sortOrder === "new" ? "old" : "new";
-  saveUiPrefs();
-  shownCount = PAGE_SIZE;
-  syncToolbar();
-  renderPostList();
-});
-
-filterBtns.forEach((btn) =>
-  btn.addEventListener("click", () => {
-    filterMode = btn.dataset.filter;
-    saveUiPrefs();
-    shownCount = PAGE_SIZE;
-    syncToolbar();
-    renderCategoryFilterChips();
-    renderPostList();
-  })
-);
-
 // --- keeping the baked links alive -------------------------------------------------
 // Bandcamp stamps every stream url with a 24h expiry, and a scheduled rebuild bakes
 // fresh ones into posts.json. A tab left open across a rebuild would be holding dead
@@ -1154,11 +904,9 @@ async function refreshDataAndRetry(ref) {
 (async function init() {
   try {
     loadUiPrefs();
-    syncToolbar();
     updateModeButtons();
 
     loadUserData();
-    loadCategories();
   } catch (e) {
     // Usually a stale index.html paired with a fresh app.js: the markup no longer has
     // an element this script expects. Whatever it is, a blank page tells the listener
@@ -1188,8 +936,7 @@ async function refreshDataAndRetry(ref) {
   }
 
   try {
-    renderCategoryManager();
-    renderCategoryFilterChips();
+    updatePreciousButton();
     renderPostList();
   } catch (e) {
     console.error(e);
