@@ -173,6 +173,28 @@ a.album-name:hover { color: #ffb070; }
    picked at random by js (see PLACEHOLDER_ICONS); muted on purpose so it never competes
    with the button burning next to it. */
 #artwork.empty { background-size: 62%; }
+#artwork[role="button"] { cursor: zoom-in; }
+#artwork[role="button"]:focus-visible { outline: 2px solid #c2521f; outline-offset: 3px; }
+
+/* Full-size cover. Nothing but the art and a way out of it. */
+#cover-view {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4vmin;
+  background: rgba(8, 8, 12, 0.92);
+  cursor: zoom-out;
+}
+#cover-view img {
+  max-width: min(90vw, 90vh);
+  max-height: 90vh;
+  border-radius: 6px;
+  box-shadow: 0 20px 60px -20px rgba(0, 0, 0, 0.9);
+}
+
 .now-playing { flex: 1; min-width: 0; }
 #now-title { font-weight: 600; font-size: 1.05rem; }
 #now-artist { color: #aaa; font-size: 0.9rem; margin-bottom: 0.5rem; }

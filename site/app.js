@@ -2,6 +2,8 @@ const audio = document.getElementById("audio");
 const nowTitle = document.getElementById("now-title");
 const nowArtist = document.getElementById("now-artist");
 const artwork = document.getElementById("artwork");
+const coverView = document.getElementById("cover-view");
+const coverViewImg = document.getElementById("cover-view-img");
 const playerEl = document.querySelector(".player");
 const playBtn = document.getElementById("play-btn");
 const seekEl = document.getElementById("seek");
@@ -264,9 +266,15 @@ function updateNowPlaying(track) {
   if (track.thumbnail) {
     artwork.style.backgroundImage = `url("${track.thumbnail}")`;
     artwork.classList.remove("empty");
+    artwork.setAttribute("role", "button");
+    artwork.setAttribute("tabindex", "0");
+    artwork.title = "Показать обложку";
   } else {
     artwork.style.backgroundImage = placeholderIcon;
     artwork.classList.add("empty");
+    artwork.removeAttribute("role");
+    artwork.removeAttribute("tabindex");
+    artwork.removeAttribute("title");
   }
   setCover(track.thumbnail);
   showPostContext();
@@ -371,6 +379,48 @@ function prevTrack() {
   }
 }
 
+
+// --- cover viewer -------------------------------------------------------------------
+// The thumbnail beside the controls is 96px of art that was made to be looked at, so
+// clicking it opens the big one, the way the album's own page does.
+
+function bigCoverUrl(url) {
+  // Bandcamp art urls end in a size code. _5 is the ~700px one we bake; _10 is roughly
+  // 1200px at 320KB, where the original runs to a megabyte and a half.
+  return url.replace(/_\d+\.(jpe?g|png)$/i, "_10.$1");
+}
+
+function openCover() {
+  if (!coverView || !coverViewImg || !current) return;
+  const track = findTrack(current.trackId);
+  if (!track || !track.thumbnail) return;
+  // If the larger size is not there, fall back to the one already on screen.
+  coverViewImg.onerror = () => {
+    coverViewImg.onerror = null;
+    coverViewImg.src = track.thumbnail;
+  };
+  coverViewImg.src = bigCoverUrl(track.thumbnail);
+  coverViewImg.alt = track.album ? `${track.album} — обложка` : "Обложка альбома";
+  coverView.hidden = false;
+}
+
+function closeCover() {
+  if (coverView) coverView.hidden = true;
+}
+
+artwork?.addEventListener("click", () => {
+  if (!artwork.classList.contains("empty")) openCover();
+});
+artwork?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    if (!artwork.classList.contains("empty")) openCover();
+  }
+});
+coverView?.addEventListener("click", closeCover);
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeCover();
+});
 
 // --- transport ---------------------------------------------------------------------
 // The browser's own <audio controls> is a white pill that cannot be themed the same way
