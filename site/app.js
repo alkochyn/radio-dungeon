@@ -41,6 +41,7 @@ let sortOrder = "new"; // 'new' | 'old'
 let filterMode = "all"; // 'all' | 'liked' | 'categories'
 let selectedCategoryIds = new Set();
 let repeatMode = "none"; // 'none' | 'post' | 'track'
+let placeholderIcon = "none"; // set once at startup, see rollPlaceholderIcon()
 let radioMode = false;
 let radioBag = []; // tracks not yet played in the current radio round
 
@@ -244,10 +245,10 @@ function updateNowPlaying(track) {
   // An <img> with src="" resolves to the page itself and can draw a broken-image icon,
   // so drop the attribute entirely and let the css placeholder show through.
   if (track.thumbnail) {
-    artwork.src = track.thumbnail;
+    artwork.style.backgroundImage = `url("${track.thumbnail}")`;
     artwork.classList.remove("empty");
   } else {
-    artwork.removeAttribute("src");
+    artwork.style.backgroundImage = placeholderIcon;
     artwork.classList.add("empty");
   }
   setCover(track.thumbnail);
@@ -550,13 +551,13 @@ const PLACEHOLDER_ICONS = [
 ];
 
 function rollPlaceholderIcon() {
-  if (!artwork) return;
   const d = PLACEHOLDER_ICONS[Math.floor(Math.random() * PLACEHOLDER_ICONS.length)];
   const svg =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">' +
     '<path fill="#565663" d="' + d + '"/></svg>';
-  artwork.style.backgroundImage =
-    'url("data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg) + '")';
+  // Kept around: a track with no cover of its own falls back to it too.
+  placeholderIcon = 'url("data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg) + '")';
+  if (artwork) artwork.style.backgroundImage = placeholderIcon;
 }
 
 rollPlaceholderIcon();

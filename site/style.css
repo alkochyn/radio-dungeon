@@ -109,22 +109,23 @@ button:disabled { opacity: 0.4; cursor: default; }
   padding: 1rem;
   margin-bottom: 1.5rem;
 }
+/* A div, not an <img>: an image element with nothing to show gets a thin frame drawn
+   round it by the browser to say "broken", which is not what an empty slot means. The
+   cover is decorative here, so it rides in as a background either way. */
 #artwork {
   width: 96px;
   height: 96px;
-  object-fit: cover;
   border-radius: 8px;
-  background: #22222b;
+  background-color: #22222b;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
   flex-shrink: 0;
 }
 /* Nothing playing yet: something rather than an empty grey hole. The drawing itself is
    picked at random by js (see PLACEHOLDER_ICONS); muted on purpose so it never competes
    with the button burning next to it. */
-#artwork.empty {
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: 62%;
-}
+#artwork.empty { background-size: 62%; }
 .now-playing { flex: 1; min-width: 0; }
 #now-title { font-weight: 600; }
 #now-artist { color: #aaa; font-size: 0.9rem; margin-bottom: 0.5rem; }
