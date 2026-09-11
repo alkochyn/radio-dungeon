@@ -511,7 +511,17 @@ repeatBtn?.addEventListener("click", () => {
   updateModeButtons();
 });
 
+// A different colour every visit and every roll - the moon is not the same moon twice.
+// Hue only: saturation and lightness stay put so it is always bright enough to read
+// white text on, whichever colour comes up.
+function rollRadioColour() {
+  if (radioBtn) radioBtn.style.setProperty("--h", String(Math.floor(Math.random() * 360)));
+}
+
+rollRadioColour();
+
 radioBtn?.addEventListener("click", () => {
+  rollRadioColour();
   // Always a roll of the dice, never a switch you have to find your way back out of:
   // pressing it again reshuffles and throws you somewhere else in the channel. The way
   // out is to pick a track yourself - see stopRadio().

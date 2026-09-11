@@ -117,11 +117,11 @@ button:disabled { opacity: 0.4; cursor: default; }
   background: #22222b;
   flex-shrink: 0;
 }
-/* Nothing playing yet: a moon rather than an empty grey hole. Icon: "evil moon" by
-   Lorc, game-icons.net, CC BY 3.0. Muted on purpose - it should not compete with the
-   Chaos Radio button burning right next to it. */
+/* Nothing playing yet: something rather than an empty grey hole. Icon: "falling blob"
+   by Lorc, game-icons.net, CC BY 3.0. Muted on purpose, and deliberately not the moon -
+   that one belongs to the button burning right next to it. */
 #artwork.empty {
-  background-image: url('data:image/svg+xml;charset=utf-8,<svg%20xmlns="http://www.w3.org/2000/svg"%20viewBox="0%200%20512%20512"><path%20fill="%23565663"%20d="M255.938%2019.938C124.514%2019.938%2017.78%20126.67%2017.78%20258.094c0%20131.422%20106.735%20238.156%20238.157%20238.156%20131.423%200%20238.157-106.734%20238.157-238.156%200-131.422-106.734-238.156-238.156-238.156zm0%2018.687c121.322%200%20219.468%2098.147%20219.468%20219.47%200%2026.08-4.548%2051.085-12.875%2074.28-20.99%208.188-43.686%2012.75-67.624%2012.75-22.242%200-43.584-3.855-63.406-10.938l12.094%2044.594-71.75-12.467%2018.844%2051.562c-57.855%207.1-108.19-15.432-130.47-49.28l81.313%201.78-23.56-48.438%2072.436-8.062.688.063c-16.83-11.135-31.777-24.876-44.22-40.688%2030.674-18.014%2066.44-28.814%20102.782-22.844-43.234-49.45-95.713-64.09-139.437-57.437a187.763%20187.763%200%200%201-3.345-35.314c0-45.286%2016.2-86.562%2042.938-118.937%202.04-.057%204.072-.095%206.125-.095zM139.188%20180.78c.638-.006%201.268-.013%201.906%200%2019.467.437%2038.24%2010.748%2048.687%2028.845%2015.923%2027.577%206.48%2062.83-21.093%2078.75-27.572%2015.92-62.828%206.483-78.75-21.094-15.92-27.576-6.478-62.86%2021.094-78.78a57.431%2057.431%200%200%201%2028.157-7.72zm-.063%2021.064c-20.26%200-36.906%2016.643-36.906%2036.906%200%2020.263%2016.644%2036.875%2036.905%2036.875%2020.26%200%2036.875-16.612%2036.875-36.875s-16.614-36.906-36.875-36.906zm0%2018.687c10.16%200%2018.188%208.058%2018.188%2018.22%200%2010.162-8.028%2018.188-18.188%2018.188-10.16%200-18.22-8.026-18.22-18.188%200-10.162%208.06-18.22%2018.22-18.22z"/></svg>');
+  background-image: url('data:image/svg+xml;charset=utf-8,<svg%20xmlns="http://www.w3.org/2000/svg"%20viewBox="0%200%20512%20512"><path%20fill="%23565663"%20d="m227.54%2025.87%20128.997%20177.28-219.59-169.19L259.07%20198.92%2020.78%2026.128h-.005l180.06%20232.19L35.878%20129.186l169.19%20225.433L20.17%20219.052l210.703%20228.224c59.994%2056.81%20154.88%2055.822%20213.664-2.963%2058.782-58.783%2059.77-153.668%202.962-213.664L227.54%2025.87zm128.448%20222.855c27.394%200%2054.786%2010.45%2075.686%2031.35%2041.8%2041.8%2041.8%20109.574%200%20151.374s-109.573%2041.8-151.373%200c-41.8-41.802-41.8-109.575%200-151.376%2020.9-20.9%2048.295-31.35%2075.688-31.35zm-6.734%2020.734c-17.067.057-36.98%207.253-52.576%2020.872-13.134%2011.468-20.463%2025.015-22.217%2036.897-1.753%2011.88%201.438%2021.776%2010.216%2029.11%2017.555%2014.667%2055.232%2011.185%2081.5-11.752%2013.134-11.47%2020.462-25.015%2022.217-36.897%201.754-11.88-1.438-21.776-10.215-29.11-7.132-5.96-17.247-9.16-28.924-9.12zm47.572%20124.368c-8.597.03-19.063%203.706-27.14%2010.65-6.803%205.848-10.36%2012.6-11.172%2018.01-.812%205.41.45%209.185%204.314%2012.364%207.73%206.357%2027.337%205.207%2040.942-6.49%206.802-5.846%2010.36-12.597%2011.17-18.008.813-5.412-.45-9.187-4.313-12.366-3.14-2.582-7.918-4.18-13.8-4.16z"/></svg>');
   background-repeat: no-repeat;
   background-position: center;
   background-size: 62%;
@@ -220,6 +220,8 @@ audio { display: none; }
    Deliberately not one of the transport buttons: it is not "one more way to skip a
    track", it is the whole channel on fire. So it sits apart and looks it. */
 #radio-btn {
+  /* One knob for the whole button: js rolls a hue, everything here follows it. */
+  --h: 18;
   flex: none;
   align-self: center;
   display: flex;
@@ -229,49 +231,57 @@ audio { display: none; }
   gap: 0.4rem;
   min-width: 8.5rem;
   padding: 0.9rem 1.2rem;
-  border: 1px solid #7a2f12;
+  border: 1px solid hsl(var(--h) 75% 45%);
   border-radius: 12px;
-  background:
-    radial-gradient(120% 90% at 50% 115%, #d4451a 0%, #7c1f0c 42%, #33121a 100%);
-  color: #ffe0b8;
+  /* The fill stays deep no matter which hue comes up: white on hsl(h 85% 24%) clears
+     5:1 for every hue, where the brighter fill it started with dropped to 1.3 on
+     yellow. The colour still reads as vivid - it lives in the rim, the glow and the
+     moon, none of which carry text. */
+  background: radial-gradient(
+    120% 90% at 50% 115%,
+    hsl(var(--h) 85% 24%) 0%,
+    hsl(var(--h) 80% 15%) 45%,
+    hsl(var(--h) 45% 10%) 100%
+  );
+  color: #fff;
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.09em;
   text-transform: uppercase;
   cursor: pointer;
-  box-shadow: 0 0 14px rgba(255, 110, 30, 0.28), inset 0 -12px 22px rgba(255, 90, 0, 0.22);
+  box-shadow: 0 0 14px hsl(var(--h) 90% 55% / 0.3), inset 0 -12px 22px hsl(var(--h) 90% 50% / 0.22);
   animation: ember 3.4s ease-in-out infinite;
 }
 #radio-btn svg {
   width: 38px;
   height: 38px;
-  fill: currentColor;
-  filter: drop-shadow(0 0 6px rgba(255, 140, 40, 0.75));
+  fill: hsl(var(--h) 95% 72%);
+  filter: drop-shadow(0 0 7px hsl(var(--h) 95% 60% / 0.85));
 }
 #radio-btn:hover {
-  color: #fff3e0;
-  border-color: #c2521f;
-  box-shadow: 0 0 20px rgba(255, 130, 40, 0.45), inset 0 -12px 24px rgba(255, 110, 10, 0.3);
+  color: #fff;
+  border-color: hsl(var(--h) 85% 58%);
+  box-shadow: 0 0 20px hsl(var(--h) 95% 60% / 0.5), inset 0 -12px 24px hsl(var(--h) 95% 55% / 0.3);
 }
 #radio-btn.active {
-  color: #fff6e6;
-  border-color: #ff8a3d;
+  color: #fff;
+  border-color: hsl(var(--h) 95% 68%);
   animation: blaze 1.1s ease-in-out infinite alternate;
 }
 
 @keyframes ember {
-  0%, 100% { box-shadow: 0 0 12px rgba(255, 110, 30, 0.22), inset 0 -12px 22px rgba(255, 90, 0, 0.2); }
-  50%      { box-shadow: 0 0 18px rgba(255, 130, 40, 0.34), inset 0 -14px 26px rgba(255, 110, 10, 0.3); }
+  0%, 100% { box-shadow: 0 0 12px hsl(var(--h) 90% 55% / 0.22), inset 0 -12px 22px hsl(var(--h) 90% 50% / 0.2); }
+  50%      { box-shadow: 0 0 18px hsl(var(--h) 92% 58% / 0.36), inset 0 -14px 26px hsl(var(--h) 92% 52% / 0.3); }
 }
 @keyframes blaze {
-  from { box-shadow: 0 0 18px rgba(255, 120, 30, 0.5), inset 0 -14px 26px rgba(255, 110, 10, 0.35); }
-  to   { box-shadow: 0 0 34px rgba(255, 165, 60, 0.85), inset 0 -18px 32px rgba(255, 140, 30, 0.5); }
+  from { box-shadow: 0 0 18px hsl(var(--h) 92% 58% / 0.5), inset 0 -14px 26px hsl(var(--h) 92% 52% / 0.35); }
+  to   { box-shadow: 0 0 34px hsl(var(--h) 95% 68% / 0.85), inset 0 -18px 32px hsl(var(--h) 95% 60% / 0.5); }
 }
 
 /* Flickering fire is exactly the kind of motion that makes some people ill. */
 @media (prefers-reduced-motion: reduce) {
   #radio-btn { animation: none; }
-  #radio-btn.active { animation: none; border-color: #ff8a3d; }
+  #radio-btn.active { animation: none; border-color: hsl(var(--h) 90% 62%); }
 }
 
 .credits {
