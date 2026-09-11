@@ -236,7 +236,15 @@ function playNewRef(ref) {
 function updateNowPlaying(track) {
   nowTitle.textContent = track.title;
   nowArtist.textContent = track.artist || "";
-  artwork.src = track.thumbnail || "";
+  // An <img> with src="" resolves to the page itself and can draw a broken-image icon,
+  // so drop the attribute entirely and let the css placeholder show through.
+  if (track.thumbnail) {
+    artwork.src = track.thumbnail;
+    artwork.classList.remove("empty");
+  } else {
+    artwork.removeAttribute("src");
+    artwork.classList.add("empty");
+  }
 }
 
 function allTrackRefs() {
