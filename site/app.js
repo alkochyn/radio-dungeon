@@ -16,6 +16,7 @@ const prevBtn = document.getElementById("prev-btn");
 const nextBtn = document.getElementById("next-btn");
 const radioBtn = document.getElementById("radio-btn");
 const postListEl = document.getElementById("post-list");
+const playerSlot = document.getElementById("player-slot");
 const preciousBtn = document.getElementById("precious-btn");
 const preciousCountEl = document.getElementById("precious-count");
 const listInfoEl = document.getElementById("list-info");
@@ -716,8 +717,31 @@ function topUpFeed() {
   }
 }
 
+// --- the player on a phone ------------------------------------------------------
+// Scrolled past, the player goes to the bottom of the screen instead of off the top of
+// it. Going fixed takes it out of the flow, so its slot is pinned to the height it had
+// while still in it - otherwise the whole feed jumps up at the moment of docking.
+
+const phone = window.matchMedia("(max-width: 640px)");
+let playerDocked = false;
+
+function syncPlayerDock() {
+  if (!playerSlot) return;
+  const past = playerSlot.getBoundingClientRect().bottom < 0;
+  const shouldDock = phone.matches && past;
+  if (shouldDock === playerDocked) return;
+  // Measured before the class lands, while the player is still filling the slot.
+  if (shouldDock) playerSlot.style.minHeight = `${playerSlot.offsetHeight}px`;
+  playerDocked = shouldDock;
+  document.body.classList.toggle("player-docked", shouldDock);
+  if (!shouldDock) playerSlot.style.minHeight = "";
+}
+
 let feedTickScheduled = false;
 function onFeedScroll() {
+  // Ahead of the throttle guard below, which would otherwise swallow the dock update
+  // on every scroll event that arrives while a feed tick is already pending.
+  syncPlayerDock();
   // A short timer rather than requestAnimationFrame: rAF stops firing when the tab is
   // not painting, and the feed would then quietly refuse to grow.
   if (feedTickScheduled) return;
@@ -730,6 +754,8 @@ function onFeedScroll() {
 
 window.addEventListener("scroll", onFeedScroll, { passive: true });
 window.addEventListener("resize", onFeedScroll);
+// Turning the phone sideways can cross the breakpoint without any scrolling at all.
+phone.addEventListener("change", syncPlayerDock);
 
 
 function renderPostCard(post) {
