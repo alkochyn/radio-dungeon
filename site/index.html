@@ -18,7 +18,15 @@
       <div class="now-playing">
         <div id="now-title">Ничего не выбрано</div>
         <div id="now-artist"></div>
-        <audio id="audio" controls></audio>
+        <audio id="audio"></audio>
+        <div class="transport">
+          <button id="play-btn" type="button" title="Играть" aria-label="Играть">▶</button>
+          <span id="time-current" class="time">0:00</span>
+          <input id="seek" type="range" min="0" max="1000" value="0" step="1"
+                 aria-label="Перемотка" />
+          <span id="time-total" class="time">0:00</span>
+          <button id="mute-btn" type="button" title="Выключить звук" aria-label="Выключить звук">🔊</button>
+        </div>
         <div class="controls">
           <button id="prev-post-btn" title="Пред. пост">⏮⏮</button>
           <button id="prev-btn" title="Пред. трек">⏮</button>
