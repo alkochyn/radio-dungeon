@@ -115,10 +115,14 @@ function saveUserData() {
   }
 }
 
-async function loadPosts() {
-  // no-store: the file is rewritten every few hours with fresh stream urls, and a
-  // cached copy would hand the player links that have already expired.
-  const res = await fetch("data/posts.json", { cache: "no-store" });
+async function loadPosts({ force = false } = {}) {
+  // Let http caching do its job. no-store used to be here to avoid serving expired
+  // stream links, but the maths says it cannot happen: the host caches this file for
+  // ten minutes while the links inside live for twenty-four hours. What no-store did
+  // instead was re-download 1.3 MB on every single visit - which on a slow connection
+  // is a blank list for several seconds. `force` is for the recovery path, where the
+  // whole point is to get past a copy whose links really have expired.
+  const res = await fetch("data/posts.json", force ? { cache: "reload" } : undefined);
   if (!res.ok) throw new Error(`data/posts.json: HTTP ${res.status}`);
   const payload = await res.json();
   dataGeneratedAt = payload.generated_at || 0;
@@ -1030,7 +1034,7 @@ async function refreshDataAndRetry(ref) {
   if (refreshingData) return false;
   refreshingData = true;
   try {
-    await loadPosts();
+    await loadPosts({ force: true });
     renderPostList();
     const track = findTrack(ref.trackId);
     if (!track) return false;
@@ -1067,6 +1071,8 @@ async function refreshDataAndRetry(ref) {
     return;
   }
 
+  showLoading();
+
   try {
     await loadPosts();
   } catch (e) {
@@ -1092,6 +1098,32 @@ async function refreshDataAndRetry(ref) {
     );
   }
 })();
+
+// The markup renders instantly; the channel list is a megabyte behind it. Without this
+// the player just sits there looking like a channel with nothing in it.
+function showLoading() {
+  if (!postListEl) return;
+  postListEl.textContent = "";
+  const box = document.createElement("div");
+  box.className = "feed-loading";
+  box.appendChild(
+    Object.assign(document.createElement("div"), {
+      className: "feed-loading-spinner",
+      ariaHidden: "true",
+    })
+  );
+  box.appendChild(
+    Object.assign(document.createElement("div"), { textContent: "Загружаю список канала" })
+  );
+  box.appendChild(
+    Object.assign(document.createElement("div"), {
+      className: "feed-loading-note",
+      textContent: "в первый раз это около мегабайта",
+    })
+  );
+  postListEl.appendChild(box);
+  if (listInfoEl) listInfoEl.textContent = "";
+}
 
 function showFailure(title, hint) {
   // The container itself may be what went missing, so fall back to the page body -

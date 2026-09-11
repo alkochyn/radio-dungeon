@@ -63,6 +63,29 @@ button:disabled { opacity: 0.4; cursor: default; }
 }
 .buy-link:hover { color: #ddd; border-bottom-color: #ddd; }
 
+.feed-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 3rem 1rem;
+  color: #7b7b8a;
+  font-size: 0.9rem;
+}
+.feed-loading-note { color: #55555f; font-size: 0.78rem; }
+.feed-loading-spinner {
+  width: 26px;
+  height: 26px;
+  border: 2px solid #33333f;
+  border-top-color: #c2521f;
+  border-radius: 50%;
+  animation: feed-spin 0.9s linear infinite;
+}
+@keyframes feed-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .feed-loading-spinner { animation-duration: 3s; }
+}
+
 .load-failure {
   padding: 2rem 1rem;
   text-align: center;
