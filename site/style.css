@@ -246,9 +246,19 @@ audio { display: none; }
   width: 2.6rem;
   height: 2.6rem;
   padding: 0;
-  line-height: 1;
-  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+/* One drawing, two directions: the boulder falls, so a quarter turn clockwise rolls it
+   back and a quarter turn the other way rolls it forward. */
+.skip button svg {
+  width: 62%;
+  height: 62%;
+  fill: currentColor;
+}
+#prev-btn svg { transform: rotate(90deg); }
+#next-btn svg { transform: rotate(-90deg); }
 /* --- Chaos Moon Disco ----------------------------------------------------------
    Deliberately not one of the transport buttons: it is not "one more way to skip a
    track", it is the whole channel on fire. So it sits apart and looks it. */
