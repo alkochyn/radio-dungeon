@@ -14,7 +14,7 @@ on:
     - cron: "0 */6 * * *"
   workflow_dispatch:
   push:
-    branches: [web-player]
+    branches: [main]
     paths:
       - "site/**"
       - "tools/**"
