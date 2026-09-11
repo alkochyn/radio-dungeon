@@ -192,6 +192,16 @@ audio { display: none; }
   text-align: center;
 }
 
+/* Times and the bar travel together so the whole group can drop to its own row on a
+   phone, where three buttons plus two readouts leave the bar nothing to live on. */
+.seek-row {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
 #seek {
   flex: 1;
   min-width: 0;
@@ -233,28 +243,21 @@ audio { display: none; }
   box-shadow: 0 0 7px rgba(255, 150, 60, 0.75);
 }
 #seek:focus-visible { outline: 2px solid #c2521f; outline-offset: 4px; }
-/* Skipping tracks sits with the disco button, not under the seek bar: both are about
-   what plays next, while the pill above is about how this track plays. */
-.skip {
-  flex: none;
-  align-self: center;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-.skip button {
-  width: 2.6rem;
-  height: 2.6rem;
-  padding: 0;
+/* Prev and next flank play, the way every player has arranged them since tape decks:
+   they answer the same question, and a pair of buttons stranded in their own column
+   beside the disco button read as leftovers. */
+#prev-btn,
+#next-btn {
   display: flex;
   align-items: center;
   justify-content: center;
 }
 /* One drawing, two directions: the boulder falls, so a quarter turn clockwise rolls it
    back and a quarter turn the other way rolls it forward. */
-.skip button svg {
-  width: 62%;
-  height: 62%;
+#prev-btn svg,
+#next-btn svg {
+  width: 58%;
+  height: 58%;
   fill: currentColor;
 }
 #prev-btn svg { transform: rotate(90deg); }
@@ -584,7 +587,7 @@ audio { display: none; }
     background: rgba(12, 12, 18, 0.92);
     border-color: #4a4a58;
   }
-  .player.has-cover .skip button {
+  .player.has-cover .transport button {
     background: rgba(28, 28, 36, 0.92);
     border-color: #5a5a68;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
@@ -601,14 +604,10 @@ audio { display: none; }
   #mute-btn { display: none; }
   .transport { gap: 0.45rem; }
 
-  /* On a phone the row is wide and short of height, so the two skips sit side by side
-     under the disco button rather than stacked beside it. */
-  .skip {
-    flex-direction: row;
-    justify-content: center;
-    width: 100%;
-  }
-  .skip button { flex: 1; height: 2.4rem; }
+  /* Two rows on a phone: buttons above, the bar across the full width below. Three
+     buttons and two readouts on one line would leave the bar about 80px. */
+  .transport { flex-wrap: wrap; justify-content: center; }
+  .seek-row { flex-basis: 100%; order: 2; }
 
   #radio-btn {
     width: 100%;
