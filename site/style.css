@@ -630,10 +630,56 @@ audio { display: none; }
     gap: 0.4rem;
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.65);
   }
-  body.player-docked #radio-btn,
   body.player-docked #now-artist { display: none; }
   body.player-docked #now-title { font-size: 0.95rem; }
   body.player-docked .transport { padding: 0.35rem 0.5rem; }
+
+  /* Docked, the block turns on its side: the title and the controls take the width
+     they need and the disco sits beside them as a square. Its name is what made it a
+     full-width slab, and at this size the moon says it on its own. */
+  body.player-docked .player { flex-direction: row; align-items: center; }
+  body.player-docked .now-playing { flex: 1; min-width: 0; }
+  body.player-docked #radio-btn {
+    flex: none;
+    width: 3rem;
+    height: 3rem;
+    min-width: 0;
+    padding: 0;
+    gap: 0;
+    --cut: 9px;
+  }
+  body.player-docked #radio-btn > span { display: none; }
+  body.player-docked #radio-btn svg { width: 24px; height: 24px; }
+  /* The volume key argument holds for the tall player, where the bar needs the width.
+     Down here there is room, and the mini player is where a reader actually reaches. */
+  body.player-docked #mute-btn { display: inline-block; }
+
+  /* Docked, the bar was the same colour as the cards it floats over and read as part
+     of the feed. A border cannot help - the bevel would cut it into loose bars, and an
+     outer shadow is clipped away by the same polygon - so the rim is drawn as two
+     stacked plates: the player's own box is the edge, and a layer inset by 2px carries
+     the face. The cover backdrop steps aside here; at bar height it was texture, and
+     texture is what it was getting lost in. */
+  body.player-docked .player {
+    background-color: #6b4a2e;
+    background-image: none;
+  }
+  body.player-docked .player::before {
+    content: "";
+    position: absolute;
+    inset: 2px;
+    background: #22222c;
+    clip-path: polygon(
+      11px 0,
+      calc(100% - 11px) 0,
+      100% 11px,
+      100% calc(100% - 11px),
+      calc(100% - 11px) 100%,
+      11px 100%,
+      0 calc(100% - 11px),
+      0 11px
+    );
+  }
   /* Room under the last track for the bar that is now sitting on top of it. */
   body.player-docked { padding-bottom: 9rem; }
   #radio-btn svg { width: 26px; height: 26px; }
