@@ -69,6 +69,20 @@ function saveUiPrefs() {
   }
 }
 
+// Bandcamp art urls end in a size code, and asking for the right one matters: a feed
+// of 30 posts holds a couple of hundred covers, and at the baked _5 that is thirty-odd
+// megabytes of 700px jpeg for squares drawn 40px wide. A phone spends the difference
+// on decoding, which is what made scrolling crawl.
+const ART_ROW = "7"; // 150px, ~9KB - the 40px square in a track row
+const ART_PLAYER = "2"; // 350px, ~42KB - the 96px square beside the controls
+const ART_BACKDROP = "5"; // 700px - fills the whole player block on a phone
+const ART_FULL = "10"; // 1200px - the cover viewer
+
+function coverUrl(url, size) {
+  if (!url) return url;
+  return url.replace(/_\d+\.(jpe?g|png)$/i, `_${size}.$1`);
+}
+
 // --- data loading -------------------------------------------------------------
 
 // One collection, kept in this browser: the tracks you liked. Album likes and
@@ -281,7 +295,7 @@ function updateNowPlaying(track) {
   // An <img> with src="" resolves to the page itself and can draw a broken-image icon,
   // so drop the attribute entirely and let the css placeholder show through.
   if (track.thumbnail) {
-    artwork.style.backgroundImage = `url("${track.thumbnail}")`;
+    artwork.style.backgroundImage = `url("${coverUrl(track.thumbnail, ART_PLAYER)}")`;
     artwork.classList.remove("empty");
     artwork.setAttribute("role", "button");
     artwork.setAttribute("tabindex", "0");
@@ -293,7 +307,7 @@ function updateNowPlaying(track) {
     artwork.removeAttribute("tabindex");
     artwork.removeAttribute("title");
   }
-  setCover(track.thumbnail);
+  setCover(coverUrl(track.thumbnail, ART_BACKDROP));
   showPostContext();
 }
 
@@ -402,9 +416,7 @@ function prevTrack() {
 // clicking it opens the big one, the way the album's own page does.
 
 function bigCoverUrl(url) {
-  // Bandcamp art urls end in a size code. _5 is the ~700px one we bake; _10 is roughly
-  // 1200px at 320KB, where the original runs to a megabyte and a half.
-  return url.replace(/_\d+\.(jpe?g|png)$/i, "_10.$1");
+  return coverUrl(url, ART_FULL);
 }
 
 function openCover() {
@@ -414,7 +426,7 @@ function openCover() {
   // If the larger size is not there, fall back to the one already on screen.
   coverViewImg.onerror = () => {
     coverViewImg.onerror = null;
-    coverViewImg.src = track.thumbnail;
+    coverViewImg.src = coverUrl(track.thumbnail, ART_BACKDROP);
   };
   coverViewImg.src = bigCoverUrl(track.thumbnail);
   coverViewImg.alt = track.album ? `${track.album} — обложка` : "Обложка альбома";
@@ -835,7 +847,10 @@ function renderTrackRow(post, track, headingArtist) {
   row.dataset.trackId = track.id;
 
   const img = document.createElement("img");
-  img.src = track.thumbnail || "";
+  img.src = coverUrl(track.thumbnail, ART_ROW) || "";
+  // Nothing below the fold needs decoding until it gets there.
+  img.loading = "lazy";
+  img.decoding = "async";
   row.appendChild(img);
 
   const meta = document.createElement("div");
