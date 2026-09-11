@@ -349,8 +349,8 @@ nextBtn.addEventListener("click", nextTrack);
 function updateModeButtons() {
   radioBtn.classList.toggle("active", radioMode);
   radioBtn.title = radioMode
-    ? "Chaos Radio: играет (нажми, чтобы выключить)"
-    : "Chaos Radio - случайные треки со всего канала, нон-стоп";
+    ? "Боги Хаоса выбирают — нажми, чтобы остановить"
+    : "Играть как боги Хаоса решат";
 
   repeatBtn.classList.toggle("active-post", repeatMode === "post");
   repeatBtn.classList.toggle("active-track", repeatMode === "track");

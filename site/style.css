@@ -10,6 +10,13 @@ body {
   margin: 0;
   padding: 0 1.5rem 3rem;
 }
+/* One column for player and list alike: on a wide monitor a progress bar stretched
+   across the whole screen is unusable and post text turns into unreadable long lines. */
+header,
+main {
+  max-width: 960px;
+  margin-inline: auto;
+}
 header {
   display: flex;
   align-items: center;
@@ -50,6 +57,7 @@ button:disabled { opacity: 0.4; cursor: default; }
 
 .player {
   display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
   align-items: center;
   background: #1e1e26;
@@ -71,7 +79,72 @@ button:disabled { opacity: 0.4; cursor: default; }
 audio { width: 100%; }
 .controls { margin-top: 0.5rem; display: flex; gap: 0.4rem; flex-wrap: wrap; }
 .controls button { padding: 0.5rem 0.7rem; }
-#radio-btn.active { background: #5a3a70; border-color: #8a5ac0; }
+/* --- Chaos Radio ---------------------------------------------------------------
+   Deliberately not one of the transport buttons: it is not "one more way to skip a
+   track", it is the whole channel on fire. So it sits apart and looks it. */
+#radio-btn {
+  flex: none;
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-width: 8.5rem;
+  padding: 0.9rem 1.2rem;
+  border: 1px solid #7a2f12;
+  border-radius: 12px;
+  background:
+    radial-gradient(120% 90% at 50% 115%, #d4451a 0%, #7c1f0c 42%, #33121a 100%);
+  color: #ffe0b8;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 0 14px rgba(255, 110, 30, 0.28), inset 0 -12px 22px rgba(255, 90, 0, 0.22);
+  animation: ember 3.4s ease-in-out infinite;
+}
+#radio-btn svg {
+  width: 38px;
+  height: 38px;
+  fill: currentColor;
+  filter: drop-shadow(0 0 6px rgba(255, 140, 40, 0.75));
+}
+#radio-btn:hover {
+  color: #fff3e0;
+  border-color: #c2521f;
+  box-shadow: 0 0 20px rgba(255, 130, 40, 0.45), inset 0 -12px 24px rgba(255, 110, 10, 0.3);
+}
+#radio-btn.active {
+  color: #fff6e6;
+  border-color: #ff8a3d;
+  animation: blaze 1.1s ease-in-out infinite alternate;
+}
+
+@keyframes ember {
+  0%, 100% { box-shadow: 0 0 12px rgba(255, 110, 30, 0.22), inset 0 -12px 22px rgba(255, 90, 0, 0.2); }
+  50%      { box-shadow: 0 0 18px rgba(255, 130, 40, 0.34), inset 0 -14px 26px rgba(255, 110, 10, 0.3); }
+}
+@keyframes blaze {
+  from { box-shadow: 0 0 18px rgba(255, 120, 30, 0.5), inset 0 -14px 26px rgba(255, 110, 10, 0.35); }
+  to   { box-shadow: 0 0 34px rgba(255, 165, 60, 0.85), inset 0 -18px 32px rgba(255, 140, 30, 0.5); }
+}
+
+/* Flickering fire is exactly the kind of motion that makes some people ill. */
+@media (prefers-reduced-motion: reduce) {
+  #radio-btn { animation: none; }
+  #radio-btn.active { animation: none; border-color: #ff8a3d; }
+}
+
+.credits {
+  max-width: 960px;
+  margin: 2.5rem auto 0;
+  color: #555;
+  font-size: 0.75rem;
+  text-align: center;
+}
+.credits a { color: #777; }
 #repeat-btn.active-post { background: #3a3a70; border-color: #5a5aa8; }
 #repeat-btn.active-track { background: #5c3a3a; border-color: #8c5a5a; }
 .controls button.inert { opacity: 0.35; }
@@ -261,3 +334,52 @@ audio { width: 100%; }
 .cat-popover label:hover { background: #2f2f3a; }
 
 .empty-hint { color: #888; padding: 2rem 0; text-align: center; }
+
+/* Wide screens only: the player stays in reach while a long list scrolls. On a phone
+   the same block is tall enough to eat half the screen, so it stays in the flow. */
+@media (min-width: 641px) {
+  .player {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    box-shadow: 0 10px 20px -12px rgba(0, 0, 0, 0.8);
+  }
+}
+
+/* --- narrow screens ------------------------------------------------------------
+   The browser's own audio element drops its progress bar when squeezed, so everything
+   in the player gets the full width instead of sharing one row. */
+@media (max-width: 640px) {
+  body { padding: 0 0.75rem 3rem; }
+
+  .player {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    padding: 0.85rem;
+  }
+
+  #artwork { width: 64px; height: 64px; }
+
+  #now-title,
+  #now-artist {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .controls { gap: 0.3rem; }
+  .controls button { padding: 0.45rem 0.6rem; }
+
+  #radio-btn {
+    width: 100%;
+    min-width: 0;
+    flex-direction: row;
+    gap: 0.6rem;
+    padding: 0.7rem 1rem;
+  }
+  #radio-btn svg { width: 26px; height: 26px; }
+
+  .pagination { flex-wrap: wrap; gap: 0.5rem; }
+  .pagination span { flex-basis: 100%; order: -1; }
+}
