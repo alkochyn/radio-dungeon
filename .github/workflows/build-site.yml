@@ -84,6 +84,12 @@ jobs:
           git diff --staged --quiet || git commit -m "Update channel catalogue"
           git push
 
+      # Pages serves every file with max-age=600 and browsers expire them independently,
+      # so a visitor can hold an old index.html next to a fresh app.js. Stamping the
+      # asset urls with a content hash keeps the pair together.
+      - name: Pin index.html to its assets
+        run: python tools/stamp_assets.py
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

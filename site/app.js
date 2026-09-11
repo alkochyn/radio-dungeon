@@ -341,12 +341,16 @@ audio.addEventListener("error", async () => {
   nextTrack();
 });
 
-prevPostBtn.addEventListener("click", () => goToPost(-1));
-nextPostBtn.addEventListener("click", () => goToPost(1));
-prevBtn.addEventListener("click", prevTrack);
-nextBtn.addEventListener("click", nextTrack);
+prevPostBtn?.addEventListener("click", () => goToPost(-1));
+nextPostBtn?.addEventListener("click", () => goToPost(1));
+prevBtn?.addEventListener("click", prevTrack);
+nextBtn?.addEventListener("click", nextTrack);
 
 function updateModeButtons() {
+  // A stale index.html may not have these buttons at all. Losing a control is survivable;
+  // throwing here is not, because this runs before anything gets rendered.
+  if (!radioBtn || !repeatBtn) return;
+
   radioBtn.classList.toggle("active", radioMode);
   radioBtn.title = radioMode
     ? "Боги Хаоса выбирают — нажми, чтобы остановить"
@@ -363,14 +367,14 @@ function updateModeButtons() {
     : `Повтор: ${labels[repeatMode]}`;
 }
 
-repeatBtn.addEventListener("click", () => {
+repeatBtn?.addEventListener("click", () => {
   if (radioMode) return;
   repeatMode = repeatMode === "none" ? "post" : repeatMode === "post" ? "track" : "none";
   saveUiPrefs();
   updateModeButtons();
 });
 
-radioBtn.addEventListener("click", () => {
+radioBtn?.addEventListener("click", () => {
   radioMode = !radioMode;
   if (radioMode) {
     repeatMode = "none";
@@ -462,12 +466,12 @@ function deleteCategory(catId) {
   renderPostList();
 }
 
-categoryManagerToggle.addEventListener("click", () => {
+categoryManagerToggle?.addEventListener("click", () => {
   categoryManagerBody.hidden = !categoryManagerBody.hidden;
   categoryManagerToggle.textContent = categoryManagerBody.hidden ? "Категории ▾" : "Категории ▴";
 });
 
-categoryCreateForm.addEventListener("submit", (e) => {
+categoryCreateForm?.addEventListener("submit", (e) => {
   e.preventDefault();
   const name = categoryNameInput.value.trim();
   if (!name) return;
@@ -766,14 +770,14 @@ function renderTrackRow(post, track) {
 
 // --- sort / filter toolbar ------------------------------------------------------
 
-sortSelect.addEventListener("change", () => {
+sortSelect?.addEventListener("change", () => {
   sortOrder = sortSelect.value;
   saveUiPrefs();
   currentPage = 0;
   renderPostList();
 });
 
-filterSelect.addEventListener("change", () => {
+filterSelect?.addEventListener("change", () => {
   filterMode = filterSelect.value;
   saveUiPrefs();
   currentPage = 0;
@@ -813,13 +817,26 @@ async function refreshDataAndRetry(ref) {
 // --- init --------------------------------------------------------------------
 
 (async function init() {
-  loadUiPrefs();
-  sortSelect.value = sortOrder;
-  filterSelect.value = filterMode;
-  updateModeButtons();
+  try {
+    loadUiPrefs();
+    sortSelect.value = sortOrder;
+    filterSelect.value = filterMode;
+    updateModeButtons();
 
-  loadUserData();
-  loadCategories();
+    loadUserData();
+    loadCategories();
+  } catch (e) {
+    // Usually a stale index.html paired with a fresh app.js: the markup no longer has
+    // an element this script expects. Whatever it is, a blank page tells the listener
+    // nothing, so say something they can act on.
+    console.error(e);
+    showFailure(
+      "Плеер не запустился",
+      "Скорее всего браузер держит старую версию страницы. Обнови её принудительно: " +
+        "Ctrl+Shift+R на компьютере, потянуть страницу вниз на телефоне."
+    );
+    return;
+  }
 
   try {
     await loadPosts();
@@ -827,31 +844,40 @@ async function refreshDataAndRetry(ref) {
     // Without the data file there is no player at all, so say so plainly instead of
     // leaving an empty shell that looks like the channel simply has no music in it.
     console.error(e);
-    showLoadFailure();
+    showFailure(
+      "Не удалось загрузить список треков",
+      "Похоже, сайт сейчас обновляется — попробуй перезагрузить страницу через пару минут."
+    );
     return;
   }
 
-  renderCategoryManager();
-  renderCategoryFilterChips();
-  renderPostList();
+  try {
+    renderCategoryManager();
+    renderCategoryFilterChips();
+    renderPostList();
+  } catch (e) {
+    console.error(e);
+    showFailure(
+      "Список не отрисовался",
+      "Обнови страницу принудительно: Ctrl+Shift+R на компьютере, потянуть вниз на телефоне."
+    );
+  }
 })();
 
-function showLoadFailure() {
-  postListEl.textContent = "";
+function showFailure(title, hint) {
+  // The container itself may be what went missing, so fall back to the page body -
+  // this is the last thing standing between a listener and a blank screen.
+  const host = postListEl || document.body;
+  if (host === postListEl) host.textContent = "";
   const box = document.createElement("div");
   box.className = "load-failure";
   box.appendChild(
     Object.assign(document.createElement("div"), {
       className: "load-failure-title",
-      textContent: "Не удалось загрузить список треков",
+      textContent: title,
     })
   );
-  box.appendChild(
-    Object.assign(document.createElement("div"), {
-      textContent:
-        "Похоже, сайт сейчас обновляется — попробуй перезагрузить страницу через пару минут.",
-    })
-  );
-  postListEl.appendChild(box);
-  if (dataNote) dataNote.textContent = "список недоступен";
+  box.appendChild(Object.assign(document.createElement("div"), { textContent: hint }));
+  host.appendChild(box);
+  if (dataNote) dataNote.textContent = "плеер недоступен";
 }
