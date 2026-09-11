@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>0===⁅‖⁚⁚⁚⁚RADIO DUNGEON⁚⁚⁚⁚⁚⁚≫</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>0===⁅‖⁚⁚⁚⁚RADIO DUNGEON⁚⁚⁚⁚⁚⁚≫</h1>
+    <span id="data-note"></span>
+  </header>
+
+  <main>
+    <div class="player">
+      <img id="artwork" alt="" />
+      <div class="now-playing">
+        <div id="now-title">Ничего не выбрано</div>
+        <div id="now-artist"></div>
+        <audio id="audio" controls></audio>
+        <div class="controls">
+          <button id="prev-post-btn" title="Пред. пост">⏮⏮</button>
+          <button id="prev-btn" title="Пред. трек">⏮</button>
+          <button id="next-btn" title="След. трек">⏭</button>
+          <button id="next-post-btn" title="След. пост">⏭⏭</button>
+          <button id="shuffle-btn" title="Вперемешку">🔀</button>
+          <button id="repeat-btn" title="Повтор: выкл">🔁</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toolbar">
+      <label class="field">
+        Сортировка
+        <select id="sort-select">
+          <option value="new">Сначала новые</option>
+          <option value="old">Сначала старые</option>
+        </select>
+      </label>
+
+      <label class="field">
+        Фильтр
+        <select id="filter-select">
+          <option value="all">Все посты</option>
+          <option value="liked">Мои лайки</option>
+          <option value="categories">По категориям</option>
+        </select>
+      </label>
+
+      <div id="category-filter" class="chip-row" hidden></div>
+    </div>
+
+    <div id="category-manager">
+      <button id="category-manager-toggle" type="button" class="cat-manager-toggle">Категории ▾</button>
+      <div id="category-manager-body" hidden>
+        <div id="category-manage-list" class="chip-row"></div>
+        <form id="category-create-form">
+          <input id="category-name-input" type="text" placeholder="Новая категория" maxlength="40" />
+          <button type="submit">+ добавить</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="pagination" class="pagination">
+      <button id="page-prev">← Пред.</button>
+      <span id="page-info"></span>
+      <button id="page-next">След. →</button>
+    </div>
+
+    <div id="post-list"></div>
+
+    <div id="pagination-bottom" class="pagination">
+      <button id="page-prev-bottom">← Пред.</button>
+      <span id="page-info-bottom"></span>
+      <button id="page-next-bottom">След. →</button>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
