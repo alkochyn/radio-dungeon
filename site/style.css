@@ -696,8 +696,14 @@ audio { display: none; }
 
   /* Two rows on a phone: buttons above, the bar across the full width below. Three
      buttons and two readouts on one line would leave the bar about 80px. */
-  .transport { flex-wrap: wrap; justify-content: center; }
-  .seek-row { flex-basis: 100%; order: 2; }
+  .transport { flex-wrap: wrap; justify-content: center; padding: 0.5rem 0.7rem; }
+  /* Inset from the pill wall: the bar ran edge to edge and the knob at either end sat
+     half outside the rounded corner, as if it had escaped. */
+  .seek-row {
+    flex-basis: 100%;
+    order: 2;
+    padding: 0 0.55rem 0.1rem;
+  }
 
   #radio-btn {
     width: 100%;
