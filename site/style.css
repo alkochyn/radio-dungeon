@@ -658,16 +658,19 @@ audio { display: none; }
   body.player-docked .now-playing { flex: 1; min-width: 0; }
   body.player-docked #radio-btn {
     flex: none;
-    width: 2.3rem;
-    height: 2.3rem;
+    width: 2.9rem;
+    height: 2.9rem;
     min-width: 0;
-    margin-left: 0.55rem;
+    /* All the slack in the row, so the transport keeps to itself on the left and the
+       disco sits alone at the right wall. Matched to the play button: the two are the
+       only things here that start something, and they should carry the same weight. */
+    margin-left: auto;
     padding: 0;
     gap: 0;
-    --cut: 7px;
+    --cut: 8px;
   }
   body.player-docked #radio-btn > span { display: none; }
-  body.player-docked #radio-btn svg { width: 20px; height: 20px; }
+  body.player-docked #radio-btn svg { width: 24px; height: 24px; }
 
   /* Docked, the bar was the same colour as the cards it floats over and read as part
      of the feed. A border cannot help - the bevel would cut it into loose bars, and an
