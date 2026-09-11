@@ -25,13 +25,17 @@
         <div id="now-artist"></div>
         <audio id="audio"></audio>
         <div class="transport">
-          <button id="play-btn" type="button" title="Играть" aria-label="Играть">▶</button>
+          <!-- Icons: "play button" / "pause button" by guard13007, game-icons.net, CC BY 3.0 -->
+          <button id="play-btn" type="button" title="Играть" aria-label="Играть">
+            <svg viewBox="0 0 512 512" aria-hidden="true" focusable="false">
+              <path d="M106.854 106.002a26.003 26.003 0 0 0-25.64 29.326c16 124 16 117.344 0 241.344a26.003 26.003 0 0 0 35.776 27.332l298-124a26.003 26.003 0 0 0 0-48.008l-298-124a26.003 26.003 0 0 0-10.136-1.994z" />
+            </svg>
+          </button>
           <span id="time-current" class="time">0:00</span>
           <input id="seek" type="range" min="0" max="1000" value="0" step="1"
                  aria-label="Перемотка" />
           <span id="time-total" class="time">0:00</span>
           <button id="mute-btn" type="button" title="Выключить звук" aria-label="Выключить звук">🔊</button>
-          <button id="repeat-btn" type="button" title="Повтор: выкл">🔁</button>
         </div>
       </div>
 

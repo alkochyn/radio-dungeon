@@ -14,7 +14,6 @@ const postContextTextEl = document.getElementById("post-context-text");
 const prevBtn = document.getElementById("prev-btn");
 const nextBtn = document.getElementById("next-btn");
 const radioBtn = document.getElementById("radio-btn");
-const repeatBtn = document.getElementById("repeat-btn");
 const sortBtn = document.getElementById("sort-btn");
 const filterBtns = Array.from(document.querySelectorAll("[data-filter]"));
 const categoryFilterEl = document.getElementById("category-filter");
@@ -38,7 +37,6 @@ let categories = [];
 let sortOrder = "new"; // 'new' | 'old'
 let filterMode = "all"; // 'all' | 'liked' | 'categories'
 let selectedCategoryIds = new Set();
-let repeatMode = "none"; // 'none' | 'post' | 'track'
 let placeholderIcon = "none"; // set once at startup, see rollPlaceholderIcon()
 let radioMode = false;
 let radioBag = []; // tracks not yet played in the current radio round
@@ -68,7 +66,6 @@ function loadUiPrefs() {
     if (p.sortOrder) sortOrder = p.sortOrder;
     if (p.filterMode) filterMode = p.filterMode;
     if (Array.isArray(p.selectedCategoryIds)) selectedCategoryIds = new Set(p.selectedCategoryIds);
-    if (p.repeatMode) repeatMode = p.repeatMode;
   } catch (e) {
     // corrupt or blocked storage - just fall back to defaults
   }
@@ -82,7 +79,6 @@ function saveUiPrefs() {
         sortOrder,
         filterMode,
         selectedCategoryIds: Array.from(selectedCategoryIds),
-        repeatMode,
       })
     );
   } catch (e) {
@@ -329,17 +325,6 @@ function pickNext() {
   if (!flat.length) return null;
   if (!current) return flat[0];
 
-  const effectiveRepeat = repeatMode === "track" ? "none" : repeatMode;
-
-  if (effectiveRepeat === "post") {
-    const postTracks = tracksOfPostFromActive(active, current.messageId);
-    if (postTracks.length) {
-      const idx = postTracks.findIndex((r) => r.trackId === current.trackId);
-      return postTracks[(idx + 1) % postTracks.length];
-    }
-    return flat[0]; // current post fell out of the filtered list
-  }
-
   const idx = flat.findIndex((r) => r.trackId === current.trackId);
   if (idx === -1) return flat[0];
   return idx + 1 < flat.length ? flat[idx + 1] : flat[0]; // loop back to the start
@@ -397,10 +382,16 @@ function syncTransport() {
   if (timeTotalEl) timeTotalEl.textContent = formatTime(audio.duration);
 }
 
+const PLAY_PATH =
+  "M106.854 106.002a26.003 26.003 0 0 0-25.64 29.326c16 124 16 117.344 0 241.344a26.003 26.003 0 0 0 35.776 27.332l298-124a26.003 26.003 0 0 0 0-48.008l-298-124a26.003 26.003 0 0 0-10.136-1.994z";
+const PAUSE_PATH =
+  "M120.16 45A20.162 20.162 0 0 0 100 65.16v381.68A20.162 20.162 0 0 0 120.16 467h65.68A20.162 20.162 0 0 0 206 446.84V65.16A20.162 20.162 0 0 0 185.84 45h-65.68zm206 0A20.162 20.162 0 0 0 306 65.16v381.68A20.162 20.162 0 0 0 326.16 467h65.68A20.162 20.162 0 0 0 412 446.84V65.16A20.162 20.162 0 0 0 391.84 45h-65.68z";
+
 function syncPlayButton() {
   if (!playBtn) return;
   const playing = !audio.paused && !audio.ended;
-  playBtn.textContent = playing ? "⏸" : "▶";
+  const path = playBtn.querySelector("path");
+  if (path) path.setAttribute("d", playing ? PAUSE_PATH : PLAY_PATH);
   playBtn.title = playing ? "Пауза" : "Играть";
   playBtn.setAttribute("aria-label", playBtn.title);
 }
@@ -444,14 +435,7 @@ audio.addEventListener("play", syncPlayButton);
 audio.addEventListener("pause", syncPlayButton);
 audio.addEventListener("ended", syncPlayButton);
 
-audio.addEventListener("ended", () => {
-  if (repeatMode === "track") {
-    audio.currentTime = 0;
-    audio.play();
-    return;
-  }
-  nextTrack();
-});
+audio.addEventListener("ended", nextTrack);
 audio.addEventListener("error", async () => {
   if (!current) return;
   // A link past its 24h expiry fails exactly like a dropped connection, so try one
@@ -465,32 +449,15 @@ prevBtn?.addEventListener("click", prevTrack);
 nextBtn?.addEventListener("click", nextTrack);
 
 function updateModeButtons() {
-  // A stale index.html may not have these buttons at all. Losing a control is survivable;
+  // A stale index.html may not have this button. Losing a control is survivable;
   // throwing here is not, because this runs before anything gets rendered.
-  if (!radioBtn || !repeatBtn) return;
+  if (!radioBtn) return;
 
   radioBtn.classList.toggle("active", radioMode);
   radioBtn.title = radioMode
     ? "Боги Хаоса выбирают — нажми, чтобы остановить"
     : "Играть как боги Хаоса решат";
-
-  repeatBtn.classList.toggle("active-post", repeatMode === "post");
-  repeatBtn.classList.toggle("active-track", repeatMode === "track");
-  // "Non-stop" and "repeat this" are contradictory instructions - while the radio
-  // plays, the repeat button has nothing sensible to mean.
-  repeatBtn.classList.toggle("inert", radioMode);
-  const labels = { none: "выкл", post: "пост", track: "трек" };
-  repeatBtn.title = radioMode
-    ? "Повтор недоступен, пока играет Chaos Moon Disco"
-    : `Повтор: ${labels[repeatMode]}`;
 }
-
-repeatBtn?.addEventListener("click", () => {
-  if (radioMode) return;
-  repeatMode = repeatMode === "none" ? "post" : repeatMode === "post" ? "track" : "none";
-  saveUiPrefs();
-  updateModeButtons();
-});
 
 // A different one of these in the empty artwork slot every visit - the player should
 // look like it was waiting for you, not like it failed to load a picture.
@@ -557,8 +524,6 @@ radioBtn?.addEventListener("click", () => {
   // pressing it again reshuffles and throws you somewhere else in the channel. The way
   // out is to pick a track yourself - see stopRadio().
   radioMode = true;
-  repeatMode = "none";
-  saveUiPrefs();
   radioBag = [];
   const ref = pickRandomFromChannel();
   if (ref) playNewRef(ref);

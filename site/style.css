@@ -146,8 +146,10 @@ audio { display: none; }
 .transport {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.3rem 0.7rem 0.3rem 0.35rem;
+  gap: 0.7rem;
+  /* Roomier than it was: at the old height the play button sat flush with the pill and
+     was easy to lose among the numbers either side of it. */
+  padding: 0.5rem 0.9rem 0.5rem 0.5rem;
   background: #15151c;
   border: 1px solid #33333f;
   border-radius: 999px;
@@ -164,10 +166,19 @@ audio { display: none; }
   border: 1px solid #454553;
 }
 #play-btn {
+  width: 2.9rem;
+  height: 2.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: linear-gradient(180deg, #3a3a48 0%, #24242e 100%);
   border-color: #5a5a6a;
   color: #ffd9a0;
-  font-size: 1rem;
+}
+#play-btn svg {
+  width: 46%;
+  height: 46%;
+  fill: currentColor;
 }
 #play-btn:hover { border-color: #c2521f; color: #fff3e0; }
 #mute-btn { width: 1.9rem; height: 1.9rem; font-size: 0.8rem; }
@@ -314,9 +325,6 @@ audio { display: none; }
   text-align: center;
 }
 .credits a { color: #777; }
-#repeat-btn.active-post { background: #3a3a70; border-color: #5a5aa8; }
-#repeat-btn.active-track { background: #5c3a3a; border-color: #8c5a5a; }
-.transport button.inert { opacity: 0.35; }
 
 /* --- toolbar: sort / filter -------------------------------------------------- */
 #toolbar {
