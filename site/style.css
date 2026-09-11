@@ -266,7 +266,10 @@ audio { display: none; }
   height: 46%;
   fill: currentColor;
 }
-#play-btn:hover { border-color: #c2521f; color: #fff3e0; }
+#play-btn:hover {
+  background: linear-gradient(180deg, #4a4a5c 0%, #2e2e3a 100%);
+  color: #fff3e0;
+}
 #mute-btn { width: 1.9rem; height: 1.9rem; font-size: 0.8rem; }
 
 /* Times and the bar travel together so the whole group can drop to its own row on a
@@ -623,7 +626,7 @@ audio { display: none; }
 }
 .like-btn svg { width: 66%; height: 66%; fill: #55555f; transition: fill 0.12s ease; }
 .like-btn:hover { background: #24242e; border-color: #3a3a48; }
-.like-btn:hover svg { fill: #9a6a6a; }
+.like-btn:hover svg { fill: #b3332a; }
 .like-btn.liked svg { fill: #c2402f; }
 .like-btn.liked:hover svg { fill: #e05a44; }
 
