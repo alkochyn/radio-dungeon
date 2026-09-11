@@ -377,11 +377,12 @@ audio { display: none; }
   text-transform: uppercase;
   cursor: pointer;
   position: relative;
+  /* No filter here, however tempting an outer halo is. A filter takes the element's
+     whole subtree as its input, so the pulsing layer below would invalidate it on every
+     frame and the browser would re-blur a full-width, clip-path'd button sixty times a
+     second - which is what broke rendering on phones the moment this came into view.
+     The fire lives in the fill and the coals instead, where it costs a composite. */
   box-shadow: inset 0 -12px 22px hsl(var(--h) 90% 50% / 0.22);
-  /* Static on purpose. A drop-shadow is rasterised once and then cached; animating it
-     meant re-blurring the silhouette of a full-width button every frame, which set
-     phones flickering and dragged the rest of the page down with it. */
-  filter: drop-shadow(0 0 10px hsl(var(--h) 90% 55% / 0.4));
 }
 
 /* The breathing half of the fire lives on its own layer and animates opacity alone -
@@ -391,7 +392,10 @@ audio { display: none; }
   content: "";
   position: absolute;
   inset: 0;
-  z-index: -1;
+  /* Above the button's own background, below its icon and label - which are lifted into
+     the positioned layer just after it. A negative z-index would need the parent to be
+     a stacking context, and the filter that used to provide one is gone. */
+  z-index: 0;
   pointer-events: none;
   background: radial-gradient(
     130% 95% at 50% 118%,
@@ -406,6 +410,8 @@ audio { display: none; }
   fill: hsl(var(--h) 95% 72%);
   filter: drop-shadow(0 0 7px hsl(var(--h) 95% 60% / 0.85));
 }
+#radio-btn > svg,
+#radio-btn > span { position: relative; }
 #radio-btn:hover { color: #fff; }
 #radio-btn.active { color: #fff; }
 #radio-btn.active::before { animation: blaze 1.1s ease-in-out infinite alternate; }
