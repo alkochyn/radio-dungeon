@@ -81,8 +81,24 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add catalog
-          git diff --staged --quiet || git commit -m "Update channel catalogue"
-          git push
+          if git diff --staged --quiet; then
+            echo "каталог не изменился"
+            exit 0
+          fi
+          git commit -m "Update channel catalogue"
+          # Syncing and baking take long enough that a push to main can land while this
+          # job runs, and then the catalogue commit is rejected as behind. It never
+          # touches anything but catalog/, so replaying it on top of whatever arrived
+          # is always the right answer.
+          for attempt in 1 2 3; do
+            if git push; then
+              exit 0
+            fi
+            echo "push отклонён, подтягиваю main (попытка $attempt)"
+            git pull --rebase origin main
+          done
+          echo "каталог не удалось запушить за 3 попытки"
+          exit 1
 
       # Pages serves every file with max-age=600 and browsers expire them independently,
       # so a visitor can hold an old index.html next to a fresh app.js. Stamping the
