@@ -65,7 +65,7 @@ jobs:
       # times a day, so it lives in the actions cache instead. A cache miss just means
       # a full rebake, which is correct, only slower.
       - name: Restore previously baked links
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: site/data/posts.json
           key: baked-links-${{ github.run_id }}
@@ -73,6 +73,17 @@ jobs:
 
       - name: Bake stream urls
         run: python tools/build_site_data.py --tracks catalog/tracks.json
+
+      # Saved the moment the bake is done, not at the end of the job. actions/cache
+      # writes its cache from a post step that a failed job skips, so anything going
+      # wrong later used to throw the bake away and make the next run walk all ~1000
+      # albums again - a quarter of an hour and a good way to earn a 429. A cancelled
+      # bake leaves this step skipped, which is right: half a file is worth nothing.
+      - name: Keep the baked links for the next run
+        uses: actions/cache/save@v4
+        with:
+          path: site/data/posts.json
+          key: baked-links-${{ github.run_id }}
 
       # posts.json is rewritten every run and would bloat history fast, so it ships to
       # Pages as an artifact instead. Only the catalogue and the album cache are kept.
