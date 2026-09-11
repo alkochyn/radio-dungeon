@@ -116,7 +116,7 @@ a.album-name:hover { color: #ffb070; }
   background: #1a1a22;
   border: 1px solid #2c2c38;
   border-left: 3px solid #7a3a18;
-  border-radius: 10px;
+  border-radius: 3px;
   padding: 0.7rem 0.9rem;
   margin-bottom: 0.75rem;
   cursor: pointer;
@@ -146,13 +146,32 @@ a.album-name:hover { color: #ffb070; }
   line-clamp: unset;
 }
 
+/* Cut corners rather than rounded ones: a forged plate reads as made, a pill reads as a
+   widget. One variable per element sets how deep the cut goes. */
+.player,
+.transport,
+.transport button,
+#radio-btn {
+  clip-path: polygon(
+    var(--cut) 0,
+    calc(100% - var(--cut)) 0,
+    100% var(--cut),
+    100% calc(100% - var(--cut)),
+    calc(100% - var(--cut)) 100%,
+    var(--cut) 100%,
+    0 calc(100% - var(--cut)),
+    0 var(--cut)
+  );
+}
+
 .player {
+  --cut: 13px;
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
   align-items: center;
   background: #1e1e26;
-  border-radius: 10px;
+  border-radius: 2px;
   padding: 1rem;
   margin-bottom: 1.5rem;
 }
@@ -162,7 +181,7 @@ a.album-name:hover { color: #ffb070; }
 #artwork {
   width: 96px;
   height: 96px;
-  border-radius: 8px;
+  border-radius: 3px;
   background-color: #22222b;
   background-repeat: no-repeat;
   background-position: center;
@@ -216,7 +235,8 @@ audio { display: none; }
   padding: 0.5rem 0.9rem 0.5rem 0.5rem;
   background: #15151c;
   border: 1px solid #33333f;
-  border-radius: 999px;
+  --cut: 9px;
+  border-radius: 2px;
 }
 .transport button {
   flex: none;
@@ -224,7 +244,8 @@ audio { display: none; }
   width: 2.1rem;
   height: 2.1rem;
   line-height: 1;
-  border-radius: 50%;
+  --cut: 6px;
+  border-radius: 2px;
   font-size: 0.95rem;
   background: #2a2a35;
   border: 1px solid #454553;
@@ -232,6 +253,7 @@ audio { display: none; }
 #play-btn {
   width: 2.9rem;
   height: 2.9rem;
+  --cut: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -333,7 +355,8 @@ audio { display: none; }
   min-width: 8.5rem;
   padding: 0.9rem 1.2rem;
   border: 1px solid hsl(var(--h) 75% 45%);
-  border-radius: 12px;
+  --cut: 12px;
+  border-radius: 2px;
   /* The fill stays deep no matter which hue comes up: white on hsl(h 85% 24%) clears
      5:1 for every hue, where the brighter fill it started with dropped to 1.3 on
      yellow. The colour still reads as vivid - it lives in the rim, the glow and the
@@ -421,7 +444,7 @@ audio { display: none; }
 #post-list { display: flex; flex-direction: column; gap: 1rem; }
 .post-card {
   background: #1e1e26;
-  border-radius: 10px;
+  border-radius: 3px;
   padding: 0.9rem 1.1rem;
 }
 .post-card-header {
@@ -596,7 +619,7 @@ audio { display: none; }
   justify-content: center;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 3px;
 }
 .like-btn svg { width: 66%; height: 66%; fill: #55555f; transition: fill 0.12s ease; }
 .like-btn:hover { background: #24242e; border-color: #3a3a48; }
@@ -612,7 +635,7 @@ audio { display: none; }
   padding: 0.5rem 0.9rem;
   background: #1c1c24;
   border: 1px solid #2e2e3a;
-  border-radius: 10px;
+  border-radius: 3px;
   color: #b9b9c6;
   font-size: 0.88rem;
 }
