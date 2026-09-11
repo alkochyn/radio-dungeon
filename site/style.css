@@ -206,15 +206,6 @@ audio { display: none; }
 #play-btn:hover { border-color: #c2521f; color: #fff3e0; }
 #mute-btn { width: 1.9rem; height: 1.9rem; font-size: 0.8rem; }
 
-.time {
-  flex: none;
-  min-width: 2.7rem;
-  color: #8f8f9e;
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-}
-
 /* Times and the bar travel together so the whole group can drop to its own row on a
    phone, where three buttons plus two readouts leave the bar nothing to live on. */
 .seek-row {

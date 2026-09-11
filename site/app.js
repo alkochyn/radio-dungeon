@@ -5,8 +5,6 @@ const artwork = document.getElementById("artwork");
 const playerEl = document.querySelector(".player");
 const playBtn = document.getElementById("play-btn");
 const seekEl = document.getElementById("seek");
-const timeCurrentEl = document.getElementById("time-current");
-const timeTotalEl = document.getElementById("time-total");
 const muteBtn = document.getElementById("mute-btn");
 const postContextEl = document.getElementById("post-context");
 const postContextLinkEl = document.getElementById("post-context-link");
@@ -211,7 +209,6 @@ function activatePlayback(ref) {
   current = ref;
   audio.src = track.stream_url;
   paintSeek(0);
-  if (timeCurrentEl) timeCurrentEl.textContent = "0:00";
   audio.play();
   updateNowPlaying(track);
   highlightCurrentTrack();
@@ -358,14 +355,6 @@ function prevTrack() {
 
 let seeking = false; // user is dragging: don't fight them with timeupdate
 
-function formatTime(seconds) {
-  if (!isFinite(seconds) || seconds < 0) return "0:00";
-  const total = Math.floor(seconds);
-  const m = Math.floor(total / 60);
-  const s = total % 60;
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
-
 function paintSeek(fraction) {
   const percent = Math.max(0, Math.min(1, fraction || 0)) * 100;
   if (seekEl) {
@@ -377,13 +366,9 @@ function paintSeek(fraction) {
 function syncTransport() {
   if (!audio.duration || !isFinite(audio.duration)) {
     paintSeek(0);
-    if (timeCurrentEl) timeCurrentEl.textContent = "0:00";
-    if (timeTotalEl) timeTotalEl.textContent = "0:00";
     return;
   }
   if (!seeking) paintSeek(audio.currentTime / audio.duration);
-  if (timeCurrentEl) timeCurrentEl.textContent = formatTime(audio.currentTime);
-  if (timeTotalEl) timeTotalEl.textContent = formatTime(audio.duration);
 }
 
 const PLAY_PATH =
@@ -414,9 +399,6 @@ seekEl?.addEventListener("input", () => {
   seeking = true;
   const fraction = Number(seekEl.value) / 1000;
   seekEl.style.setProperty("--p", `${fraction * 100}%`);
-  if (timeCurrentEl && isFinite(audio.duration)) {
-    timeCurrentEl.textContent = formatTime(fraction * audio.duration);
-  }
 });
 
 seekEl?.addEventListener("change", () => {
