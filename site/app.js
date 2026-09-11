@@ -8,6 +8,7 @@ const playerEl = document.querySelector(".player");
 const playBtn = document.getElementById("play-btn");
 const seekEl = document.getElementById("seek");
 const muteBtn = document.getElementById("mute-btn");
+const nowLikeBtn = document.getElementById("now-like");
 const postContextEl = document.getElementById("post-context");
 const postContextLinkEl = document.getElementById("post-context-link");
 const postContextTextEl = document.getElementById("post-context-text");
@@ -176,6 +177,7 @@ function toggleTrackLike(track) {
   else likedIds.add(track.id);
   saveUserData();
   updatePreciousButton();
+  updateNowLike();
   if (preciousMode) {
     renderPostList();
     return;
@@ -251,6 +253,7 @@ function playNewRef(ref) {
 
 function updateNowPlaying(track) {
   nowTitle.textContent = track.title;
+  updateNowLike();
   // Second line carries whose album this is - the track name alone says nothing about
   // where it came from, and that is what the channel is recommending.
   nowArtist.textContent = "";
@@ -804,6 +807,26 @@ function setLikeButtonState(btn, liked) {
   btn.setAttribute("aria-label", btn.title);
   btn.setAttribute("aria-pressed", String(liked));
 }
+
+// The player's own heart likes whatever is playing. It stays dead until something is,
+// because there is nothing to like about an empty player.
+function updateNowLike() {
+  if (!nowLikeBtn) return;
+  const track = current ? findTrack(current.trackId) : null;
+  nowLikeBtn.disabled = !track;
+  if (!track) {
+    setLikeButtonState(nowLikeBtn, false);
+    nowLikeBtn.title = "Лайк";
+    nowLikeBtn.setAttribute("aria-label", nowLikeBtn.title);
+    return;
+  }
+  setLikeButtonState(nowLikeBtn, likedIds.has(track.id));
+}
+
+nowLikeBtn?.addEventListener("click", () => {
+  const track = current ? findTrack(current.trackId) : null;
+  if (track) toggleTrackLike(track);
+});
 
 function renderTrackRow(post, track, headingArtist) {
   const row = document.createElement("div");

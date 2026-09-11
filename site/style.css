@@ -637,6 +637,9 @@ audio { display: none; }
 .like-btn:hover { background: #24242e; border-color: #3a3a48; }
 .like-btn:hover svg { fill: #b3332a; }
 .like-btn.liked svg { fill: #c2402f; }
+/* The player's heart sits among the transport controls, so it behaves like one:
+   the row's transparent-until-hovered treatment reads as a hole in the strip. */
+#now-like:hover:not(:disabled) { background: #3a3a48; }
 .like-btn.liked:hover svg { fill: #e05a44; }
 
 #precious-btn {
