@@ -246,6 +246,11 @@ nowHeadEl?.addEventListener("click", enterAlbumView);
 // The post comes back whole when any field matches: the album is the unit that plays,
 // and cutting it down to the matching row would break the order.
 let searchPhrase = "";
+// Words are the fallback, used only when the phrase is nowhere in the channel. Keeping
+// them apart from the phrase is what keeps the highlighting honest: marks show why this
+// post matched, so "hymn of rites" never lights up the "of" in a different hymn.
+let searchWords = [];
+let searchByWords = false;
 const loweredFields = new WeakMap();
 
 function postFields(post) {
@@ -264,22 +269,46 @@ function postFields(post) {
   return fields;
 }
 
-function matchesSearch(post) {
-  if (!searchPhrase) return true;
+function hasPhrase(post) {
   return postFields(post).some((field) => field.includes(searchPhrase));
 }
 
-// Where the phrase sits inside one piece of text, so the render can mark it.
+// Every word somewhere in the post, each one free to sit in a different field - which is
+// the whole point: "trollslayer mirage" is an artist and an album, and nobody ever wrote
+// those two next to each other.
+function hasAllWords(post) {
+  const fields = postFields(post);
+  return searchWords.every((word) => fields.some((field) => field.includes(word)));
+}
+
+function matchesSearch(post) {
+  if (!searchPhrase) return true;
+  return searchByWords ? hasAllWords(post) : hasPhrase(post);
+}
+
+// Where the query sits inside one piece of text, so the render can mark it. Overlapping
+// hits merge, which only happens in word mode - one word inside another.
 function matchRanges(text) {
   if (!searchPhrase) return [];
+  const needles = searchByWords ? searchWords : [searchPhrase];
   const lower = text.toLowerCase();
   const found = [];
-  let at = lower.indexOf(searchPhrase);
-  while (at !== -1) {
-    found.push([at, at + searchPhrase.length]);
-    at = lower.indexOf(searchPhrase, at + searchPhrase.length);
+  for (const needle of needles) {
+    let at = lower.indexOf(needle);
+    while (at !== -1) {
+      found.push([at, at + needle.length]);
+      at = lower.indexOf(needle, at + needle.length);
+    }
   }
-  return found;
+  if (found.length < 2) return found;
+  found.sort((a, b) => a[0] - b[0]);
+  const merged = [found[0]];
+  for (const range of found.slice(1)) {
+    const last = merged[merged.length - 1];
+    if (range[0] <= last[1]) last[1] = Math.max(last[1], range[1]);
+    else merged.push(range);
+  }
+  return merged;
 }
 
 // Writes `text` into `el`, wrapping whatever the query hit. Replaces textContent at every
@@ -307,6 +336,11 @@ function setSearch(raw) {
   const phrase = raw.trim().toLowerCase().replace(/\s+/g, " ");
   if (phrase === searchPhrase) return;
   searchPhrase = phrase;
+  searchWords = phrase.split(" ").filter(Boolean);
+  // Strict first, relaxed only if strict finds nothing anywhere. A query that exists as
+  // a phrase should never be diluted by posts that merely contain its words.
+  searchByWords =
+    searchWords.length > 1 && phrase !== "" && !posts.some(hasPhrase);
   shownCount = PAGE_SIZE;
   renderPostList();
   window.scrollTo({ top: 0 });
