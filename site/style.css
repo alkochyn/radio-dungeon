@@ -697,6 +697,11 @@ audio { display: none; }
     gap: 0;
     --cut: 8px;
   }
+  /* The disco's auto margin was eating the whole slack, which pinned the transport
+     against the left wall. A second auto margin splits it, so the controls sit in the
+     middle of what is left of the row. Auto margins collapse to nothing when the row
+     runs out of room, which a fixed indent would not - it would wrap the disco away. */
+  body.player-docked #prev-btn { margin-left: auto; }
   body.player-docked #radio-btn > span { display: none; }
   body.player-docked #radio-btn svg { width: 24px; height: 24px; }
 
