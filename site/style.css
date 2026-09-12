@@ -1170,17 +1170,18 @@ body.player-docked .player .fire { display: none; }
   border: 1px solid #3a3a48;
   border-radius: 4px;
 }
-/* Light, round and loud - the one thing on the page that is not forged out of dark
-   metal, because a speech balloon that matches its surroundings stops reading as one.
-   The hue still turns with the evening, just far up at the pale end. */
+/* Round and lighter than everything around it: a balloon in the same dark metal as the
+   rest stops reading as speech at all. Weathered stone rather than paper, though - at
+   paper white it tore a hole in the page. The hue still turns with the evening, it just
+   sits low and desaturated. */
 #hail-line {
   position: relative;
   width: fit-content;
   max-width: 100%;
   padding: 0.5rem 0.95rem;
-  background: hsl(var(--h) 32% 93%);
+  background: hsl(var(--h) 16% 66%);
   border-radius: 14px;
-  color: hsl(var(--h) 45% 13%);
+  color: hsl(var(--h) 45% 11%);
   font-weight: 700;
   font-size: 0.95rem;
   line-height: 1.25;
@@ -1197,7 +1198,7 @@ body.player-docked .player .fire { display: none; }
   transform: translateY(-50%);
   border-top: 8px solid transparent;
   border-bottom: 8px solid transparent;
-  border-right: 13px solid hsl(var(--h) 32% 93%);
+  border-right: 13px solid hsl(var(--h) 16% 66%);
 }
 @media (max-width: 640px) {
   #hail-face { display: block; }
