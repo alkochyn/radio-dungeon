@@ -914,6 +914,20 @@ audio { display: none; }
   }
 }
 
+/* --- a track row on a narrow screen -----------------------------------------------
+   The title had 146px of a 316px row and 131 of 257 names were cut. The furniture gives
+   some of it back first - the buy link loses its own margin and a step of type, the row
+   its gaps - and only then the title takes a smaller size, which fits more characters in
+   the same box rather than making the box bigger. Together the name gets about a quarter
+   more room. The buy link stays a word: an icon beside the heart would read as a second
+   heart, and nobody would guess it means bandcamp. */
+@media (max-width: 640px) {
+  .track-row { gap: 0.5rem; }
+  .buy-link { margin-left: 0.25rem; font-size: 0.72rem; }
+  .track-row .title { font-size: 0.92rem; }
+  .track-row .artist { font-size: 0.78rem; }
+}
+
 /* --- back out of a narrowed view -------------------------------------------------
    Sits at the left of the row under the player, opposite the collection button. Same
    button for an album and for the collection: one way out, wherever you went in. */
