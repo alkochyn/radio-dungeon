@@ -19,6 +19,8 @@ const transportEl = document.querySelector(".transport");
 const nowPlayingEl = document.querySelector(".now-playing");
 const nowHeadEl = document.getElementById("now-head");
 const hailEl = document.getElementById("hail");
+const hailLineEl = document.getElementById("hail-line");
+const hailFaceEl = document.getElementById("hail-face");
 const postListEl = document.getElementById("post-list");
 const playerSlot = document.getElementById("player-slot");
 const preciousBtn = document.getElementById("precious-btn");
@@ -742,8 +744,8 @@ const HAILS = [
 ];
 
 function rollHail() {
-  if (!hailEl) return;
-  hailEl.textContent = HAILS[Math.floor(Math.random() * HAILS.length)];
+  if (!hailEl || !hailLineEl) return;
+  hailLineEl.textContent = HAILS[Math.floor(Math.random() * HAILS.length)];
   hailEl.hidden = false;
 }
 
@@ -759,6 +761,9 @@ function rollPlaceholderIcon() {
   // Kept around: a track with no cover of its own falls back to it too.
   placeholderIcon = 'url("data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg) + '")';
   if (artwork) artwork.style.backgroundImage = placeholderIcon;
+  // The balloon carries the same face: on a phone the thumbnail beside the controls is
+  // gone, and without it the line has nobody saying it.
+  if (hailFaceEl) hailFaceEl.style.backgroundImage = placeholderIcon;
 }
 
 rollPlaceholderIcon();

@@ -36,7 +36,10 @@
         </button>
         <!-- What the face on the left says while nothing is playing. Filled and shown
              by rollHail() in app.js, and gone for good once a track starts. -->
-        <div id="hail" hidden></div>
+        <div id="hail" hidden>
+          <span id="hail-face" aria-hidden="true"></span>
+          <span id="hail-line"></span>
+        </div>
         <audio id="audio"></audio>
         <div class="transport">
           <!-- Icons: "play button" / "pause button" by guard13007, game-icons.net, CC BY 3.0 -->

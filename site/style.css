@@ -1146,14 +1146,22 @@ body.player-docked .player .fire { display: none; }
 }
 
 /* --- what the face says ------------------------------------------------------------
-   A speech balloon where the track name would be, pointing back at the placeholder on
-   the left. It only exists before the first track starts, which is also the only time
-   that space is empty and the face is the only thing in the player. */
+   A speech balloon where the track name would be, pointing back at whoever is talking.
+   It only exists before the first track starts, which is also the only time that space
+   is empty. */
 #hail {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 0 0.55rem;
+}
+/* On a wide screen the face is already there, 96px of it, to the left of the controls.
+   This one is for the phone, where that thumbnail is not rendered at all. */
+#hail-face { display: none; }
+#hail-line {
   position: relative;
   width: fit-content;
   max-width: 100%;
-  margin: 0 0 0.55rem;
   padding: 0.5rem 0.9rem;
   background: #22222c;
   border-radius: 3px;
@@ -1173,9 +1181,9 @@ body.player-docked .player .fire { display: none; }
   font-size: 0.95rem;
   letter-spacing: 0.04em;
 }
-/* The tail is a separate element rather than part of the balloon: the bevel is a
-   clip-path, and a clip cannot be told to keep one spur sticking out of it. */
-#hail::before {
+/* The tail is its own square rather than part of the balloon: the bevel is a clip-path,
+   and a clip cannot be told to leave one spur sticking out of it. */
+#hail-line::before {
   content: "";
   position: absolute;
   top: 50%;
@@ -1186,6 +1194,11 @@ body.player-docked .player .fire { display: none; }
   background: #22222c;
 }
 @media (max-width: 640px) {
-  /* No thumbnail on a phone, so nobody is standing there to point at. */
-  #hail::before { display: none; }
+  #hail-face {
+    display: block;
+    flex: none;
+    width: 44px;
+    height: 44px;
+    background: no-repeat center / contain;
+  }
 }
