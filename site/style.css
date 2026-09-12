@@ -29,11 +29,11 @@ header {
   flex-wrap: wrap;
 }
 h1 { font-size: 1.1rem; margin: 0; letter-spacing: 0.02em; }
-/* The title is ascii art - a sword - and it sagged. Not a font problem: =, the guard
-   and the chevron tip are all drawn around the math axis (~0.25em above the baseline)
-   while capitals are centred near 0.35em, so the blade hangs below the lettering in
-   every face. Measured at 2-2.5px against 24px text; lifting by that much in em keeps
-   it level at any size. */
+/* The title is ascii art - a sword - and the blade hangs below the lettering: =, the
+   guard and the chevron are drawn around the math axis while capitals are centred
+   higher. How far below is a property of the font, and a phone renders these glyphs
+   from a different fallback than a desktop does - so alignBlades() in app.js measures
+   the real ink and overrides this. The value here is only what shows before it runs. */
 .blade {
   position: relative;
   top: -0.09em;

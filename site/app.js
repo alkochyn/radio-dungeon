@@ -749,7 +749,45 @@ const HAILS = [
   "КАКОЙ У ТЕБЯ АС",
   "КИДАЙ ИНИЦИАТИВУ",
   "YOU DIED",
+  "ГНОМ КОР СТАВЬ",
 ];
+
+// The title is ascii art - a sword - and the blade hangs below the lettering, because
+// =, the guard and the chevron are drawn around the math axis while capitals are centred
+// higher. How far below depends entirely on the font, and the font depends on the device:
+// the css lift was measured on one and overshot on a phone, which renders those glyphs
+// from a fallback face. So measure the actual ink here and line the centres up.
+function alignBlades() {
+  const h1 = document.querySelector("h1");
+  const blades = h1 ? h1.querySelectorAll(".blade") : [];
+  if (!blades.length) return;
+  const ctx = document.createElement("canvas").getContext("2d");
+  if (!ctx) return;
+  const cs = getComputedStyle(h1);
+  ctx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+
+  // Middle of the drawn ink, measured from the baseline, up positive.
+  const inkMiddle = (text) => {
+    const m = ctx.measureText(text);
+    if (typeof m.actualBoundingBoxAscent !== "number") return null;
+    return (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2;
+  };
+
+  const letters = inkMiddle("RADIO DUNGEON");
+  if (letters === null) return; // old engine: the css fallback keeps its guess
+  blades.forEach((el) => {
+    const middle = inkMiddle(el.textContent);
+    if (middle === null) return;
+    // Negative moves it up, which is the direction the blade always needs.
+    el.style.top = `${(middle - letters).toFixed(2)}px`;
+  });
+}
+
+// Web fonts and fallback resolution both settle after first paint; measuring before that
+// measures the wrong face.
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(alignBlades);
+else window.addEventListener("load", alignBlades);
+window.addEventListener("resize", alignBlades);
 
 function rollHail() {
   if (!hailEl || !hailLineEl) return;
