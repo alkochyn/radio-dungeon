@@ -182,7 +182,11 @@ a.album-name:hover { color: #ffb070; }
   border-radius: 2px;
   padding: 1rem;
 }
-#player-slot { margin-bottom: 1.5rem; }
+/* Positioned so the torchlight has something to hang off. Deliberately here and not
+   next to the torch itself: down there it would come after the media query that makes
+   this sticky on a wide screen, and quietly turn the sticky player back into a normal
+   one. The wide-screen rule overrides this on purpose. */
+#player-slot { position: relative; margin-bottom: 1.5rem; }
 /* A div, not an <img>: an image element with nothing to show gets a thin frame drawn
    round it by the browser to say "broken", which is not what an empty slot means. The
    cover is decorative here, so it rides in as a background either way. */
@@ -223,11 +227,73 @@ a.album-name:hover { color: #ffb070; }
 }
 
 .now-playing { flex: 1; min-width: 0; }
-#now-title { font-weight: 600; font-size: 1.05rem; }
-#now-artist { color: #aaa; font-size: 0.9rem; margin-bottom: 0.5rem; }
+/* Everything naming what is playing is one control, and it opens the album the track
+   came from. Built as a plate to match the transport under it: the two then read as the
+   same kind of thing, and it inherits the press feedback the buttons already have -
+   which is the only feedback there is on a screen that cannot hover. */
+#now-head {
+  /* Two rows and a column: the track's own name above, who made it and where it lives
+     below, and the arrow beside both. A grid rather than flex because the arrow has to
+     span both rows - on one line none of the three names fit on a phone. */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "title arrow"
+    "artist arrow";
+  align-items: center;
+  column-gap: 0.6rem;
+  width: 100%;
+  --cut: 9px;
+  border: none;
+  border-radius: 2px;
+  margin-bottom: 0.55rem;
+  padding: 0.45rem 0.8rem;
+  background: #15151c;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  clip-path: polygon(
+    var(--cut) 0,
+    calc(100% - var(--cut)) 0,
+    100% var(--cut),
+    100% calc(100% - var(--cut)),
+    calc(100% - var(--cut)) 100%,
+    var(--cut) 100%,
+    0 calc(100% - var(--cut)),
+    0 var(--cut)
+  );
+}
+/* Disabled here means "nowhere to go", not "unavailable": in an album view the name is
+   still the name of what is playing, it just has no destination left. So the plate stays
+   and only the arrow goes - the player must not change shape with the view. */
+#now-head:disabled { opacity: 1; }
+#now-head:disabled #now-head-go { display: none; }
+/* An empty player is the one case with nothing to show: no plate either, so it stays as
+   quiet as it was before any of this. */
+#now-head.no-track {
+  background: none;
+  padding-left: 0;
+  padding-right: 0;
+}
+#now-head-go {
+  grid-area: arrow;
+  align-self: center;
+  font-size: 0.85rem;
+  color: hsl(var(--h) 95% 72%);
+}
+/* Both halves give way rather than one shoving the other out: a long track name and a
+   long album name are both ordinary here. */
+#now-title,
+#now-artist {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#now-title { grid-area: title; font-weight: 600; font-size: 1.05rem; }
+#now-artist { grid-area: artist; color: #aaa; font-size: 0.9rem; }
 .now-sep { color: #6d6d7a; }
 .now-album { color: #c0c0cc; text-decoration: none; }
-a.now-album:hover { color: #ffb070; }
 audio { display: none; }
 
 /* --- transport ------------------------------------------------------------------
@@ -442,10 +508,21 @@ audio { display: none; }
 }
 .credits a { color: #777; }
 
+/* What the feed is showing, and the way into the collection - one row, opposite ends.
+   Stacked they collided: the collection button carried its own margins and sat on top
+   of the way back out of an album. */
+.feed-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.8rem;
+  margin: 0.9rem 0.2rem 0.2rem;
+}
 #list-info {
+  flex: 1;
+  min-width: 0;
   color: #6e6e7c;
   font-size: 0.78rem;
-  margin: 0.6rem 0.2rem;
 }
 #feed-end {
   color: #7e7e8c;
@@ -661,23 +738,9 @@ audio { display: none; }
     gap: 0.4rem;
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.65);
   }
-  body.player-docked #now-artist { display: none; }
+  body.player-docked #now-head { margin-bottom: 0.4rem; padding: 0.3rem 0.6rem; }
   body.player-docked #now-title { font-size: 0.95rem; }
-  /* The bar gets one line instead of two, and the artist belongs on it: a title alone
-     names a track to whoever already knows the album. Built from the attribute app.js
-     writes, so it only exists while the player is actually docked. The margin is what
-     keeps it off the roof of the control strip. */
-  body.player-docked .now-playing[data-dock-line] #now-title { display: none; }
-  body.player-docked .now-playing[data-dock-line]::before {
-    content: attr(data-dock-line);
-    display: block;
-    margin-bottom: 0.2rem;
-    font-weight: 600;
-    font-size: 0.95rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
+  body.player-docked #now-artist { font-size: 0.8rem; }
   body.player-docked .transport { padding: 0.35rem 0.5rem; }
 
   /* Docked, the block turns on its side and the disco moves into the transport strip
@@ -787,6 +850,7 @@ audio { display: none; }
    liked tint are both red - so un-liking looked like nothing had happened at all. None
    of this belongs on a device that cannot hover in the first place. */
 @media (hover: hover) {
+  #now-head:hover:not(:disabled) { background: #1c1c26; }
   .like-btn:hover { background: #24242e; border-color: #3a3a48; }
   /* Each hover shows the colour the click will leave behind: red over an empty heart,
      grey over a full one. A brighter red on the liked heart said the opposite - it
@@ -801,10 +865,10 @@ audio { display: none; }
 .like-btn.liked::before { background-color: #c2402f; }
 
 #precious-btn {
+  flex: none;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin: 0.9rem 0 0.2rem;
   padding: 0.5rem 0.9rem;
   background: #1c1c24;
   border: 1px solid #2e2e3a;
@@ -850,4 +914,220 @@ audio { display: none; }
   .like-btn {
     transition: none;
   }
+}
+
+/* --- back out of a narrowed view -------------------------------------------------
+   Sits at the left of the row under the player, opposite the collection button. Same
+   button for an album and for the collection: one way out, wherever you went in. */
+#view-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.7rem;
+  background: #1c1c24;
+  border: 1px solid #2e2e3a;
+  border-radius: 3px;
+  color: #b9b9c6;
+  font-size: 0.85rem;
+}
+#view-back:hover { background: #24242e; color: #eee; }
+
+/* ==================================================================================
+   Radio Dungeon — атмосфера (вариант 1a «Факел»)
+   Дополнение к site/style.css. Вставлять целиком в конец файла — всё опирается на
+   существующие классы (.player, .transport, .track-row) и на переменную --h,
+   которую уже крутит Chaos Moon Disco.
+   Требует три правки разметки, см. handoff/README.md.
+   ================================================================================== */
+
+/* --- 1. Факел над плеером ---------------------------------------------------------
+   Тёплое пятно света, которое дышит. Оттенок — тот же --h, что и у диско-кнопки,
+   поэтому свет во всей странице поворачивается вместе с ней. */
+/* The torch is wider than the column on purpose, and a decoration must never make the
+   page scroll sideways - it did, by 51px. `clip` rather than `hidden`: hidden would turn
+   this into a scroll container and the sticky player would stop sticking. */
+html,
+body { overflow-x: clip; }
+.torchlight {
+  position: absolute;
+  left: 50%;
+  top: -90px;
+  width: min(760px, 120%);
+  height: 420px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: -1;
+  background: radial-gradient(closest-side, hsl(var(--h) 90% 52% / 0.2), transparent 72%);
+  animation: torch-breathe 6.5s ease-in-out infinite;
+}
+@keyframes torch-breathe {
+  0%, 100% { opacity: 0.42; transform: translateX(-50%) scale(1); }
+  50%      { opacity: 0.8;  transform: translateX(-50%) scale(1.06); }
+}
+
+/* --- 2. Огонь под плитой ----------------------------------------------------------
+   Спектр не полоски-эквалайзер, а языки пламени вдоль нижней кромки: плита стоит на
+   огне. Каждый язык — один <i>, размеры и фазы раздаёт js (см. README).
+   mix-blend-mode: screen — чтобы пламя светилось поверх плиты, а не закрашивало её. */
+.player { padding-bottom: 1.4rem; }
+.player .fire {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 56px;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 0.5s ease;
+}
+/* Пауза: огонь оседает до углей, а не исчезает. Класс вешается на .player. */
+.player.is-paused .fire { opacity: 0.22; }
+/* Тёплый подсвет от углей — под самими языками. */
+.player .fire::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, hsl(var(--h) 95% 52% / 0.3), transparent 78%);
+}
+.player .fire-tongues {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 0 10px;
+  mix-blend-mode: screen;
+  filter: blur(2.5px);
+}
+.player .fire-tongues i {
+  flex: 1;
+  height: var(--fh, 50%);
+  transform-origin: bottom;
+  border-radius: 46% 46% 34% 34% / 62% 62% 22% 22%;
+  background: linear-gradient(
+    0deg,
+    hsl(var(--h) 100% 74%) 0%,
+    hsl(var(--h) 95% 55% / 0.85) 38%,
+    hsl(var(--h) 90% 48% / 0) 100%
+  );
+  animation: fire-lick var(--fd, 0.8s) ease-in-out infinite alternate;
+  animation-delay: var(--fdelay, 0s);
+}
+@keyframes fire-lick {
+  0%   { transform: scaleY(0.55) skewX(-7deg); opacity: 0.5; }
+  23%  { transform: scaleY(1.05) skewX(5deg);  opacity: 0.95; }
+  41%  { transform: scaleY(0.7)  skewX(-4deg); opacity: 0.65; }
+  62%  { transform: scaleY(1.25) skewX(7deg);  opacity: 1; }
+  80%  { transform: scaleY(0.8)  skewX(-6deg); opacity: 0.75; }
+  100% { transform: scaleY(0.6)  skewX(3deg);  opacity: 0.55; }
+}
+/* Пристыкованный плеер на телефоне — это узкая полоса, огонь в ней не помещается. */
+body.player-docked .player .fire { display: none; }
+
+/* Контент плеера всегда поверх огня. В узком брейкпоинте это правило уже есть,
+   здесь оно нужно и на широком экране. */
+.player > *:not(.fire) { position: relative; }
+
+/* --- 3. Проходящий свет по плите --------------------------------------------------
+   Медленный блик слева направо: поверхность перестаёт быть мёртвой, даже когда
+   ничего не происходит. */
+.player .glint {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 38%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(100deg, transparent, hsl(var(--h) 90% 60% / 0.07), transparent);
+  animation: glint-sweep 9s linear infinite;
+}
+@keyframes glint-sweep {
+  0%   { transform: translateX(-60%); }
+  100% { transform: translateX(260%); }
+}
+
+/* --- 4. Оттенок вечера на кнопках транспорта --------------------------------------
+   Раньше --h жил только в play, перемотке и диско. Теперь prev/next тоже
+   поворачиваются вместе со всем остальным — насыщенность низкая, так что при любом
+   выпавшем оттенке кнопка остаётся тёмной, а иконка читается. */
+.transport #prev-btn,
+.transport #next-btn {
+  background: hsl(var(--h) 22% 18%);
+  color: hsl(var(--h) 45% 78%);
+}
+.transport #prev-btn:hover,
+.transport #next-btn:hover {
+  background: hsl(var(--h) 26% 24%);
+  color: hsl(var(--h) 55% 86%);
+}
+#play-btn {
+  background: linear-gradient(180deg, hsl(var(--h) 26% 27%) 0%, hsl(var(--h) 28% 16%) 100%);
+}
+#play-btn:hover {
+  background: linear-gradient(180deg, hsl(var(--h) 30% 34%) 0%, hsl(var(--h) 30% 21%) 100%);
+}
+
+/* Играющая строка в списке светится тем же оттенком - фоном, без полоски сбоку:
+   обрезок рамки вдоль одного края читается как недорисованная рамка. */
+.track-row.playing { background: #22222e; }
+
+/* --- 5. Play/pause прямо на обложке трека -----------------------------------------
+   Из бэклога (п. 3): строка перестаёт быть кнопкой «играть с начала». Кнопка живёт
+   поверх миниатюры, полупрозрачная, и показывает настоящее состояние звука. */
+.track-row .thumb {
+  position: relative;
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+}
+.track-row .thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 4px;
+  background: #22222b;
+}
+.row-play {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: rgba(8, 8, 12, 0.55);
+  color: #dcdce6;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+.row-play svg { width: 42%; height: 42%; fill: currentColor; }
+/* Пауза рисуется двумя полосками, чтобы не тащить вторую иконку. */
+.row-play .bars { display: none; gap: 3px; }
+.row-play .bars span { width: 4px; height: 13px; background: currentColor; }
+.row-play[aria-pressed="true"] .bars { display: flex; }
+.row-play[aria-pressed="true"] svg { display: none; }
+/* У играющего трека кнопка в цвете вечера и не прячется. */
+.track-row.playing .row-play { color: hsl(var(--h) 95% 76%); }
+@media (hover: hover) {
+  .row-play { opacity: 0; }
+  .track-row:hover .row-play,
+  .row-play:focus-visible { opacity: 1; }
+  .track-row.playing .row-play { opacity: 1; }
+  .row-play:hover { background: rgba(8, 8, 12, 0.78); }
+}
+.row-play:focus-visible { outline: 2px solid hsl(var(--h) 85% 55%); outline-offset: 2px; }
+
+
+
+/* --- Меньше движения ---------------------------------------------------------------
+   Мерцающий огонь — ровно тот случай, от которого людям делается плохо. Свет и
+   пламя остаются как статичная подсветка, дрожь уходит. */
+@media (prefers-reduced-motion: reduce) {
+  .torchlight { animation: none; opacity: 0.55; }
+  .player .fire-tongues i { animation: none; transform: scaleY(0.85); }
+  .player .glint { animation: none; opacity: 0.5; }
 }

@@ -17,6 +17,7 @@ const nextBtn = document.getElementById("next-btn");
 const radioBtn = document.getElementById("radio-btn");
 const transportEl = document.querySelector(".transport");
 const nowPlayingEl = document.querySelector(".now-playing");
+const nowHeadEl = document.getElementById("now-head");
 const postListEl = document.getElementById("post-list");
 const playerSlot = document.getElementById("player-slot");
 const preciousBtn = document.getElementById("precious-btn");
@@ -139,6 +140,19 @@ async function refreshPosts() {
   }
 }
 
+// Compilations on bandcamp name their tracks "ARTIST - Title", and we carry the artist
+// as a field as well - so printing both says the name twice in a row. When the title
+// already opens with it, the field has nothing to add.
+function artistLeadsTitle(track) {
+  if (!track || !track.artist || !track.title) return false;
+  const artist = track.artist.trim().toLowerCase();
+  const title = track.title.trim().toLowerCase();
+  if (!title.startsWith(artist)) return false;
+  // Only when it really is a prefix and not the start of a longer name: "AVXARC" must
+  // not swallow the title of a track by "AVXARC & PERCIDAE".
+  return /^[\s]*[-–—:|]/.test(title.slice(artist.length));
+}
+
 function findTrack(trackId) {
   for (const post of posts) {
     const t = post.tracks.find((tr) => tr.id === trackId);
@@ -151,7 +165,79 @@ function findTrack(trackId) {
 // This is the single source of truth both for what's rendered as post cards and for
 // what next/prev are allowed to play - nothing outside it is ever picked.
 
+// --- the album detour ---------------------------------------------------------------
+// Pressing the name of what is playing narrows the feed to the one post that track came
+// from. Nothing about playback is interrupted: `current` and the audio element are not
+// touched, only what counts as "the list" - which is the same lever "Моя прелесть"
+// pulls, so the order, the highlight and the feed all follow for free.
+let albumMode = false;
+let albumPostId = null;
+let orderBefore = null; // where "back" puts things: { precious, radio }
+
+function postOf(messageId) {
+  return posts.find((p) => String(p.message_id) === String(messageId)) || null;
+}
+
+// Which post a track really came from. Not `current.messageId`: in "Моя прелесть" that
+// is the synthetic post the collection is served from, and the album behind the track
+// is exactly what this view is for reaching from there.
+function postOfTrack(trackId) {
+  return posts.find((p) => p.tracks.some((t) => t.id === trackId)) || null;
+}
+
+function enterAlbumView() {
+  const post = current ? postOfTrack(current.trackId) : null;
+  if (!post) return;
+  orderBefore = { precious: preciousMode, radio: radioMode };
+  stopRadio();
+  preciousMode = false;
+  albumMode = true;
+  albumPostId = post.message_id;
+  shownCount = PAGE_SIZE;
+  updatePreciousButton();
+  updateNowHead();
+  renderPostList();
+  showPostContext();
+  window.scrollTo({ top: 0 });
+}
+
+function leaveAlbumView() {
+  if (!albumMode) return;
+  const back = orderBefore || { precious: false, radio: false };
+  albumMode = false;
+  albumPostId = null;
+  orderBefore = null;
+  preciousMode = back.precious;
+  // The order goes back to what it was. Not a fresh press of the disco: the colour
+  // belongs to the evening, not to this trip out of it.
+  radioMode = back.radio;
+  shownCount = PAGE_SIZE;
+  updateModeButtons();
+  updatePreciousButton();
+  updateNowHead();
+  renderPostList();
+  showPostContext();
+  window.scrollTo({ top: 0 });
+}
+
+// Nothing to open when nothing is playing, and nowhere to go when the feed already
+// shows exactly this album.
+function updateNowHead() {
+  if (!nowHeadEl) return;
+  const post = current ? postOfTrack(current.trackId) : null;
+  const usable = !!post && !(albumMode && String(post.message_id) === String(albumPostId));
+  nowHeadEl.classList.toggle("no-track", !current);
+  nowHeadEl.disabled = !usable;
+  nowHeadEl.title = usable ? "Открыть альбом целиком" : "";
+}
+
+nowHeadEl?.addEventListener("click", enterAlbumView);
+
 function computeActiveList() {
+  if (albumMode) {
+    const post = albumPost();
+    return post ? [post] : [];
+  }
   if (preciousMode) return [preciousPost()];
 
   const list = posts.slice();
@@ -177,6 +263,10 @@ function likedTracks() {
     })
   );
   return out;
+}
+
+function albumPost() {
+  return postOf(albumPostId);
 }
 
 function preciousPost() {
@@ -212,13 +302,15 @@ function updatePreciousButton() {
   if (preciousCountEl) preciousCountEl.textContent = count ? String(count) : "";
 }
 
-preciousBtn?.addEventListener("click", () => {
-  preciousMode = !preciousMode;
+function setPreciousMode(on) {
+  preciousMode = on;
   shownCount = PAGE_SIZE;
   updatePreciousButton();
   renderPostList();
   window.scrollTo({ top: 0 });
-});
+}
+
+preciousBtn?.addEventListener("click", () => setPreciousMode(!preciousMode));
 
 function flattenActive(active) {
   const flat = [];
@@ -252,12 +344,31 @@ function activatePlayback(ref) {
 // Moving the highlight used to rebuild every card on the page - half a second of frozen
 // ui after 400 posts, and over a second once the disco had grown the feed to 800. The
 // highlight is two class changes; the list has no reason to be touched.
+function setRowPlayState(btn, playing) {
+  btn.setAttribute("aria-pressed", String(playing));
+  btn.setAttribute("aria-label", playing ? "Пауза" : "Играть");
+  btn.title = btn.getAttribute("aria-label");
+}
+
+// Two lookups rather than a sweep of every row: the feed runs to thousands of them and
+// only one can be the playing one.
+function syncRowPlayButtons() {
+  const lit = postListEl.querySelector('.row-play[aria-pressed="true"]');
+  if (lit) setRowPlayState(lit, false);
+  if (!current || audio.paused || audio.ended) return;
+  const btn = postListEl.querySelector(
+    `.track-row[data-track-id="${current.trackId}"] .row-play`,
+  );
+  if (btn) setRowPlayState(btn, true);
+}
+
 function highlightCurrentTrack() {
   const previous = postListEl.querySelector(".track-row.playing");
   if (previous) previous.classList.remove("playing");
   if (!current) return;
   const row = postListEl.querySelector(`.track-row[data-track-id="${current.trackId}"]`);
   if (row) row.classList.add("playing");
+  syncRowPlayButtons();
 }
 
 function playNewRef(ref) {
@@ -271,35 +382,25 @@ function playNewRef(ref) {
 function updateNowPlaying(track) {
   nowTitle.textContent = track.title;
   updateNowLike();
-  // Docked there is room for one line, and the artist is half of what names a track,
-  // so the bar reads "artist - title". Kept as an attribute rather than a second
-  // element: css picks it up with attr(), and nothing here has to know about docking.
-  if (nowPlayingEl) {
-    nowPlayingEl.dataset.dockLine = [track.artist, track.title].filter(Boolean).join(" — ");
-  }
+  updateNowHead();
   // Second line carries whose album this is - the track name alone says nothing about
   // where it came from, and that is what the channel is recommending.
   nowArtist.textContent = "";
-  if (track.artist) {
+  const showArtist = track.artist && !artistLeadsTitle(track);
+  if (showArtist) {
     nowArtist.appendChild(document.createTextNode(track.artist));
   }
   if (track.album) {
-    if (track.artist) {
+    if (showArtist) {
       nowArtist.appendChild(Object.assign(document.createElement("span"), {
         className: "now-sep",
         textContent: " — ",
       }));
     }
-    const album = document.createElement(track.album_url ? "a" : "span");
-    album.className = "now-album";
-    album.textContent = track.album;
-    if (track.album_url) {
-      album.href = track.album_url;
-      album.target = "_blank";
-      album.rel = "noopener";
-      album.title = "Открыть альбом на bandcamp";
-    }
-    nowArtist.appendChild(album);
+    nowArtist.appendChild(Object.assign(document.createElement("span"), {
+      className: "now-album",
+      textContent: track.album,
+    }));
   }
   // An <img> with src="" resolves to the page itself and can draw a broken-image icon,
   // so drop the attribute entirely and let the css placeholder show through.
@@ -324,6 +425,10 @@ function updateNowPlaying(track) {
 // actually lives. Playing a track without it shows the music but loses the voice.
 function showPostContext() {
   if (!postContextEl) return;
+  if (albumMode) {
+    postContextEl.hidden = true;
+    return;
+  }
   const post = current ? posts.find((p) => p.message_id === current.messageId) : null;
   if (!post || !post.message_text) {
     postContextEl.hidden = true;
@@ -399,7 +504,9 @@ function pickNext() {
 
   const idx = flat.findIndex((r) => r.trackId === current.trackId);
   if (idx === -1) return flat[0];
-  return idx + 1 < flat.length ? flat[idx + 1] : flat[0]; // loop back to the start
+  if (idx + 1 < flat.length) return flat[idx + 1];
+  // The feed loops back to the top; an album just ends, the way an album does.
+  return albumMode ? null : flat[0];
 }
 
 function nextTrack() {
@@ -487,6 +594,30 @@ const PLAY_PATH =
 const PAUSE_PATH =
   "M120.16 45A20.162 20.162 0 0 0 100 65.16v381.68A20.162 20.162 0 0 0 120.16 467h65.68A20.162 20.162 0 0 0 206 446.84V65.16A20.162 20.162 0 0 0 185.84 45h-65.68zm206 0A20.162 20.162 0 0 0 306 65.16v381.68A20.162 20.162 0 0 0 326.16 467h65.68A20.162 20.162 0 0 0 412 446.84V65.16A20.162 20.162 0 0 0 391.84 45h-65.68z";
 
+// --- the fire under the plate ------------------------------------------------------
+// One <i> per tongue, sized and phased from a deterministic hash rather than Math.random:
+// a re-render must not reshuffle the flames, or the fire visibly jumps.
+function lightTheFire() {
+  const tongues = document.querySelector(".fire-tongues");
+  if (!tongues || tongues.childElementCount) return;
+  const frag = document.createDocumentFragment();
+  for (let i = 0; i < 34; i++) {
+    const seed = Math.sin(i * 12.9898) * 43758.5453;
+    const f = seed - Math.floor(seed);
+    const el = document.createElement("i");
+    el.style.setProperty("--fh", `${(24 + f * 74).toFixed(0)}%`);
+    el.style.setProperty("--fd", `${(0.42 + f * 0.7).toFixed(2)}s`);
+    el.style.setProperty("--fdelay", `${(f * -1.4).toFixed(2)}s`);
+    frag.appendChild(el);
+  }
+  tongues.appendChild(frag);
+}
+
+// Paused, the fire settles to embers rather than going out.
+function syncFire() {
+  if (playerEl) playerEl.classList.toggle("is-paused", audio.paused);
+}
+
 function syncPlayButton() {
   if (!playBtn) return;
   const playing = !audio.paused && !audio.ended;
@@ -531,6 +662,11 @@ audio.addEventListener("emptied", syncTransport);
 audio.addEventListener("play", syncPlayButton);
 audio.addEventListener("pause", syncPlayButton);
 audio.addEventListener("ended", syncPlayButton);
+audio.addEventListener("play", syncFire);
+audio.addEventListener("pause", syncFire);
+audio.addEventListener("play", syncRowPlayButtons);
+audio.addEventListener("pause", syncRowPlayButtons);
+audio.addEventListener("ended", syncRowPlayButtons);
 
 audio.addEventListener("ended", nextTrack);
 audio.addEventListener("error", async () => {
@@ -616,6 +752,8 @@ function rollRadioColour() {
 }
 
 rollRadioColour();
+lightTheFire();
+syncFire();
 
 radioBtn?.addEventListener("click", () => {
   rollRadioColour();
@@ -674,7 +812,10 @@ function renderPreciousList() {
     const post = preciousPost();
     tracks.forEach((track) => postListEl.appendChild(renderTrackRow(post, track, null)));
   }
-  if (listInfoEl) listInfoEl.textContent = "";
+  if (listInfoEl) {
+    listInfoEl.textContent = "";
+    listInfoEl.appendChild(backButton(() => setPreciousMode(false), "Вернуться в канал"));
+  }
   if (feedEndEl) feedEndEl.hidden = true;
 }
 
@@ -691,12 +832,25 @@ function appendCards(active, from, to) {
   postListEl.appendChild(batch);
 }
 
+function backButton(onClick, title) {
+  const back = document.createElement("button");
+  back.type = "button";
+  back.id = "view-back";
+  back.textContent = "← Назад";
+  back.title = title;
+  back.addEventListener("click", onClick);
+  return back;
+}
+
 function updateFeedTail(active) {
   const shown = Math.min(shownCount, active.length);
   if (listInfoEl) {
-    listInfoEl.textContent = active.length
-      ? `${shown} из ${active.length} постов`
-      : "Постов пока нет";
+    listInfoEl.textContent = "";
+    if (albumMode) {
+      listInfoEl.appendChild(
+        backButton(leaveAlbumView, "Вернуться и отдать очередь обратно каналу"),
+      );
+    }
   }
   if (feedEndEl) feedEndEl.hidden = !active.length || shown < active.length;
 }
@@ -889,12 +1043,38 @@ function renderTrackRow(post, track, headingArtist) {
   row.className = "track-row" + (isPlaying ? " playing" : "");
   row.dataset.trackId = track.id;
 
+  // The cover doubles as the row's play/pause control - a row used to be one command,
+  // "play this from the start", with no way to pause without reaching for the player.
+  const thumb = document.createElement("span");
+  thumb.className = "thumb";
   const img = document.createElement("img");
   img.src = coverUrl(track.thumbnail, ART_ROW) || "";
   // Nothing below the fold needs decoding until it gets there.
   img.loading = "lazy";
   img.decoding = "async";
-  row.appendChild(img);
+  thumb.appendChild(img);
+
+  const rowPlay = document.createElement("button");
+  rowPlay.type = "button";
+  rowPlay.className = "row-play";
+  // Pause is two bars drawn in css, so the row carries one icon instead of two.
+  rowPlay.innerHTML =
+    `<svg viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="${PLAY_PATH}" /></svg>` +
+    '<span class="bars"><span></span><span></span></span>';
+  setRowPlayState(rowPlay, isPlaying && !audio.paused);
+  rowPlay.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (current && current.trackId === track.id) {
+      // Already the one playing: pause or pick it back up, never start it over.
+      if (audio.paused) audio.play();
+      else audio.pause();
+      return;
+    }
+    stopRadio();
+    playNewRef({ messageId: post.message_id, trackId: track.id });
+  });
+  thumb.appendChild(rowPlay);
+  row.appendChild(thumb);
 
   const meta = document.createElement("div");
   meta.className = "meta";
@@ -904,7 +1084,7 @@ function renderTrackRow(post, track, headingArtist) {
   meta.appendChild(titleEl);
   // Repeating the album's artist on every one of its tracks is just noise; on a
   // compilation, where the per-track artist differs, it is the whole point.
-  if (track.artist && track.artist !== headingArtist) {
+  if (track.artist && track.artist !== headingArtist && !artistLeadsTitle(track)) {
     const artistEl = document.createElement("div");
     artistEl.className = "artist";
     artistEl.textContent = track.artist;
