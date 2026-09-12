@@ -632,9 +632,15 @@ audio { display: none; }
   /* A shadow, not a box-shadow: the bevel clips that away, which is why the one that
      used to be here never showed. This one follows the polygon. */
   .player { filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.55)); }
-  /* The disco ends where the control strip ends. Centred, it floated between the two
-     lines of text and the controls, belonging to neither. */
-  #radio-btn { align-self: flex-end; }
+  /* The disco runs the full height of the player rather than floating at one end of it.
+     It is the one control that is not about the track playing, so it reads better as
+     its own column beside the rest than as a tile among them. */
+  #radio-btn { align-self: stretch; }
+
+  /* The player keeps one height whether or not anything is playing. Empty, the name
+     plate collapses and the block was 32px shorter, so the whole feed jumped down the
+     moment the first track started. */
+  .player { min-height: 10.4rem; }
 }
 
 /* --- narrow screens ------------------------------------------------------------
