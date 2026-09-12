@@ -34,6 +34,9 @@
           <span id="now-artist"></span>
           <span id="now-head-go" aria-hidden="true">❯</span>
         </button>
+        <!-- What the face on the left says while nothing is playing. Filled and shown
+             by rollHail() in app.js, and gone for good once a track starts. -->
+        <div id="hail" hidden></div>
         <audio id="audio"></audio>
         <div class="transport">
           <!-- Icons: "play button" / "pause button" by guard13007, game-icons.net, CC BY 3.0 -->
@@ -94,7 +97,7 @@
   <script src="app.js"></script>
   <footer class="credits">
     Иконки — <a href="https://game-icons.net/" target="_blank" rel="noopener">game-icons.net</a>:
-    Lorc, Delapouite, Skoll, guard13007,
+    Lorc, Delapouite, Skoll, Cathelineau, guard13007,
     <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener">CC BY 3.0</a>
   </footer>
 </body>

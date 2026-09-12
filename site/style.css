@@ -640,7 +640,7 @@ audio { display: none; }
   /* The player keeps one height whether or not anything is playing. Empty, the name
      plate collapses and the block was 32px shorter, so the whole feed jumped down the
      moment the first track started. */
-  .player { min-height: 10.4rem; }
+  .player { min-height: 10.6rem; }
 }
 
 /* --- narrow screens ------------------------------------------------------------
@@ -1143,4 +1143,49 @@ body.player-docked .player .fire { display: none; }
   .torchlight { animation: none; opacity: 0.55; }
   .player .fire-tongues i { animation: none; transform: scaleY(0.85); }
   .player .glint { animation: none; opacity: 0.5; }
+}
+
+/* --- what the face says ------------------------------------------------------------
+   A speech balloon where the track name would be, pointing back at the placeholder on
+   the left. It only exists before the first track starts, which is also the only time
+   that space is empty and the face is the only thing in the player. */
+#hail {
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 0 0.55rem;
+  padding: 0.5rem 0.9rem;
+  background: #22222c;
+  border-radius: 3px;
+  --cut: 9px;
+  clip-path: polygon(
+    var(--cut) 0,
+    calc(100% - var(--cut)) 0,
+    100% var(--cut),
+    100% calc(100% - var(--cut)),
+    calc(100% - var(--cut)) 100%,
+    var(--cut) 100%,
+    0 calc(100% - var(--cut)),
+    0 var(--cut)
+  );
+  color: hsl(var(--h) 30% 82%);
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+}
+/* The tail is a separate element rather than part of the balloon: the bevel is a
+   clip-path, and a clip cannot be told to keep one spur sticking out of it. */
+#hail::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: -9px;
+  width: 12px;
+  height: 12px;
+  transform: translateY(-50%) rotate(45deg);
+  background: #22222c;
+}
+@media (max-width: 640px) {
+  /* No thumbnail on a phone, so nobody is standing there to point at. */
+  #hail::before { display: none; }
 }
