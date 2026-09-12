@@ -81,8 +81,14 @@
     <!-- One line under the player: the way out of an album on the left, the way into
          the collection on the right. -->
     <div class="feed-bar">
-      <input id="search" type="search" autocomplete="off" spellcheck="false"
-             placeholder="Поиск по каналу" aria-label="Поиск по каналу" />
+      <div class="search-wrap">
+        <input id="search" type="search" autocomplete="off" spellcheck="false"
+               placeholder="Поиск по каналу" aria-label="Поиск по каналу" />
+        <!-- Our own clear button: the one the browser draws is a few pixels wide and
+             Firefox draws none at all. -->
+        <button id="search-clear" type="button" hidden aria-label="Очистить поиск"
+                title="Очистить поиск">✕</button>
+      </div>
       <div id="list-info"></div>
       <!-- Icon: "emerald" by Lorc, game-icons.net, CC BY 3.0 -->
       <button id="precious-btn" type="button" aria-pressed="false">

@@ -19,6 +19,8 @@ const transportEl = document.querySelector(".transport");
 const nowPlayingEl = document.querySelector(".now-playing");
 const nowHeadEl = document.getElementById("now-head");
 const searchEl = document.getElementById("search");
+const searchWrapEl = document.querySelector(".search-wrap");
+const searchClearEl = document.getElementById("search-clear");
 const hailEl = document.getElementById("hail");
 const hailLineEl = document.getElementById("hail-line");
 const hailFaceEl = document.getElementById("hail-face");
@@ -317,8 +319,17 @@ function setSearch(raw) {
 // A keystroke is cheap to match and expensive to render, so the render waits for a pause.
 let searchTimer = null;
 searchEl?.addEventListener("input", () => {
+  if (searchClearEl) searchClearEl.hidden = !searchEl.value;
   clearTimeout(searchTimer);
   searchTimer = setTimeout(() => setSearch(searchEl.value), 120);
+});
+
+searchClearEl?.addEventListener("click", () => {
+  searchEl.value = "";
+  searchClearEl.hidden = true;
+  clearTimeout(searchTimer);
+  setSearch("");
+  searchEl.focus();
 });
 
 function computeActiveList() {
@@ -1014,7 +1025,7 @@ function renderViewBar() {
   } else if (preciousMode) {
     listInfoEl.appendChild(backButton(() => setPreciousMode(false), "Вернуться в канал"));
   }
-  if (searchEl) searchEl.hidden = albumMode || preciousMode;
+  if (searchWrapEl) searchWrapEl.hidden = albumMode || preciousMode;
 }
 
 function appendMorePosts() {
