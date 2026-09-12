@@ -153,11 +153,11 @@ def main() -> int:
     if previous.get("version") != DATA_VERSION:
         previous = {}
         print("формат данных изменился - запекаю заново, без переиспользования")
-    baked: dict[str, dict] = {}
+    previous_tracks: dict[str, dict] = {}
     for post in previous.get("posts", []):
         for t in post.get("tracks", []):
             if bandcamp.stream_expiry(t.get("stream_url", "")):
-                baked[t["id"]] = t
+                previous_tracks[t["id"]] = t
 
     # What this run touches is decided before a single request goes out.
     now = time.time()
@@ -168,7 +168,7 @@ def main() -> int:
             continue
         soonest = None
         for t in bandcamp_tracks:
-            record = baked.get(t["id"])
+            record = previous_tracks.get(t["id"])
             expiry = bandcamp.stream_expiry(record["stream_url"]) if record else None
             if expiry is None:
                 # Never baked, or baked before there was a timestamp to read: fetch it.
@@ -213,7 +213,7 @@ def main() -> int:
             # Not picked by the planning pass: every link here is known good and has
             # time left, so there is nothing to ask bandcamp about.
             if key not in refresh:
-                reusable = [baked[t["id"]] for t in bandcamp_tracks]
+                reusable = [previous_tracks[t["id"]] for t in bandcamp_tracks]
                 for t in reusable:
                     expiry = bandcamp.stream_expiry(t["stream_url"])
                     if expiry and (soonest_expiry is None or expiry < soonest_expiry):
@@ -253,7 +253,7 @@ def main() -> int:
                 continue
 
             by_url = {t.webpage_url: t for t in album.tracks}
-            baked = []
+            fresh_records = []
             for original in bandcamp_tracks:
                 fresh = by_url.get(original["webpage_url"])
                 if fresh is None:
@@ -262,7 +262,7 @@ def main() -> int:
                 expiry = bandcamp.stream_expiry(fresh.stream_url)
                 if expiry and (soonest_expiry is None or expiry < soonest_expiry):
                     soonest_expiry = expiry
-                baked.append(
+                fresh_records.append(
                     {
                         "id": original["id"],
                         "title": fresh.title or original["title"],
@@ -276,10 +276,10 @@ def main() -> int:
                     }
                 )
 
-            stats["resolved"] += len(baked)
-            print(f"{label}: {len(baked)}/{len(bandcamp_tracks)} треков — {album.title[:45]}")
-            if baked:
-                out_posts.append({**post, "tracks": baked})
+            stats["resolved"] += len(fresh_records)
+            print(f"{label}: {len(fresh_records)}/{len(bandcamp_tracks)} треков — {album.title[:45]}")
+            if fresh_records:
+                out_posts.append({**post, "tracks": fresh_records})
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     payload = {

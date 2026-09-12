@@ -81,5 +81,116 @@ check("пиковый прогон меньше катастрофы", max(sizes
 check("после раскачки прогоны ровные", max(sizes[4:]) <= build.REFRESH_BUDGET + 100,
       f"после раскачки {min(sizes[4:])}-{max(sizes[4:])}")
 
+
+# --- the planner and the bake loop together ----------------------------------------
+# The planner splits the catalogue into "fetch this" and "keep what you have", and the
+# loop walks both in one pass. Checked apart they each looked right, while the loop
+# rebound the dict of kept records to its list of fresh ones on the first fetch, and
+# every reuse after that died. So this runs main() over a catalogue arranged to put a
+# fetch before a reuse - the order that breaks - with the network stubbed out.
+
+import json  # noqa: E402
+import time  # noqa: E402
+import tempfile  # noqa: E402
+
+from app import bandcamp  # noqa: E402
+
+print()
+print("запекание целиком, без сети")
+
+ALBUM_A = "https://x.bandcamp.com/album/a"
+ALBUM_B = "https://x.bandcamp.com/album/b"
+
+
+def stream(tid, ts):
+    return f"https://t4.bcbits.com/stream/{tid}/mp3-128/{tid}?p=0&ts={int(ts)}&t=a&token=b"
+
+
+def catalogue_track(tid, mid, album):
+    return {
+        "id": tid,
+        "title": tid,
+        "artist": "Artist",
+        "webpage_url": f"{album}/track/{tid}",
+        "message_id": mid,
+        "message_date": "2026-01-01T00:00:00",
+        "message_text": "",
+    }
+
+
+def kept(tid, ts):
+    return {
+        "id": tid, "title": tid, "artist": "Artist", "album": "B",
+        "album_url": ALBUM_B, "webpage_url": f"{ALBUM_B}/track/{tid}",
+        "stream_url": stream(tid, ts), "duration": 1, "thumbnail": None,
+    }
+
+
+with tempfile.TemporaryDirectory() as tmpname:
+    tmp = Path(tmpname)
+    real_now = time.time()
+    keep_ts = real_now + 20 * HOUR
+
+    # Post 1 was never baked and has to be fetched. Post 2 has most of its life left and
+    # has to be kept - and it comes second, after the fetch.
+    (tmp / "tracks.json").write_text(json.dumps([
+        catalogue_track("a1", 1, ALBUM_A), catalogue_track("a2", 1, ALBUM_A),
+        catalogue_track("b1", 2, ALBUM_B), catalogue_track("b2", 2, ALBUM_B),
+    ]), encoding="utf-8")
+    (tmp / "albums.json").write_text(
+        json.dumps({"1": ALBUM_A, "2": ALBUM_B}), encoding="utf-8")
+    (tmp / "posts.json").write_text(json.dumps({
+        "version": build.DATA_VERSION,
+        "posts": [{
+            "message_id": 2, "message_date": "2026-01-01T00:00:00", "message_text": "",
+            "telegram_url": None, "tracks": [kept("b1", keep_ts), kept("b2", keep_ts)],
+        }],
+    }), encoding="utf-8")
+
+    def fake_parse(html, page_url):
+        return bandcamp.BcAlbum(
+            url=ALBUM_A, title="A", artist="Artist",
+            tracks=[bandcamp.BcTrack(
+                webpage_url=f"{ALBUM_A}/track/{tid}", title=tid, artist="Artist",
+                stream_url=stream(tid, real_now + 24 * HOUR), duration=1,
+                album_url=ALBUM_A, album_title="A") for tid in ("a1", "a2")],
+        )
+
+    saved = (build.OUT_FILE, build.OUT_DIR, build.ALBUM_CACHE, build.ROOT,
+             build.REQUEST_DELAY, build.REFRESH_BUDGET,
+             bandcamp.fetch_page, bandcamp.parse_page)
+    build.OUT_FILE = tmp / "posts.json"
+    build.OUT_DIR = tmp
+    build.ALBUM_CACHE = tmp / "albums.json"
+    build.ROOT = tmp
+    build.REQUEST_DELAY = 0.0
+    build.REFRESH_BUDGET = 1  # only the neediest, so post 2 must take the reuse path
+    bandcamp.fetch_page = lambda client, url, log=print: "<html/>"
+    bandcamp.parse_page = fake_parse
+
+    sys.argv = ["build_site_data.py", "--tracks", str(tmp / "tracks.json")]
+    crash = None
+    try:
+        build.main()
+    except Exception as exc:  # noqa: BLE001 - reporting it is the whole point
+        crash = f"{type(exc).__name__}: {exc}"
+    finally:
+        (build.OUT_FILE, build.OUT_DIR, build.ALBUM_CACHE, build.ROOT,
+         build.REQUEST_DELAY, build.REFRESH_BUDGET,
+         bandcamp.fetch_page, bandcamp.parse_page) = saved
+
+    check("выпечка и переиспользование в одном проходе не падают", crash is None, crash or "")
+    if crash is None:
+        written = json.loads((tmp / "posts.json").read_text(encoding="utf-8"))
+        by_id = {p["message_id"]: p for p in written["posts"]}
+        check("оба поста дошли до файла", set(by_id) == {1, 2}, str(sorted(by_id)))
+        if set(by_id) == {1, 2}:
+            check("скачанный пост принёс свежие ссылки",
+                  len(by_id[1]["tracks"]) == 2
+                  and all(str(int(real_now + 24 * HOUR)) in t["stream_url"] for t in by_id[1]["tracks"]))
+            check("переиспользованный пост сохранил свои",
+                  [t["stream_url"] for t in by_id[2]["tracks"]]
+                  == [stream("b1", keep_ts), stream("b2", keep_ts)])
+
 print("\nFailures:", len(failures) or "none")
 raise SystemExit(1 if failures else 0)
