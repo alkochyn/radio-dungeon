@@ -750,6 +750,8 @@ const HAILS = [
   "КИДАЙ ИНИЦИАТИВУ",
   "YOU DIED",
   "ГНОМ КОР СТАВЬ",
+  "НУ А МОЖЕТ КОМФИ СИНТА",
+  "ВРУБАЙ ДИНО СИНТ",
 ];
 
 // The title is ascii art - a sword - and the blade hangs below the lettering, because
