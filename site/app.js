@@ -741,6 +741,9 @@ const HAILS = [
   "QUEST MASTERА ВКЛЮЧИ",
   "ВРУБАЙ GNOLL",
   "ЗА ДАНЖН СИНТ ШАРИШЬ ПОСТАВЬ ЛЮБИМЫЙ АЛЬБОМ",
+  "ЕСТЬ ЧТО ПО ФРОГ КОРУ",
+  "ВКЛЮЧАЙ TALES UNDER THE OAK",
+  "СДЕЛАЙ ПОПОГРОМЧЕ",
 ];
 
 function rollHail() {
@@ -755,9 +758,11 @@ function silenceHail() {
 
 function rollPlaceholderIcon() {
   const d = PLACEHOLDER_ICONS[Math.floor(Math.random() * PLACEHOLDER_ICONS.length)];
+  const hue =
+    getComputedStyle(document.documentElement).getPropertyValue("--h").trim() || "18";
   const svg =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">' +
-    '<path fill="#565663" d="' + d + '"/></svg>';
+    '<path fill="hsl(' + hue + ', 20%, 54%)" d="' + d + '"/></svg>';
   // Kept around: a track with no cover of its own falls back to it too.
   placeholderIcon = 'url("data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg) + '")';
   if (artwork) artwork.style.backgroundImage = placeholderIcon;
@@ -766,6 +771,7 @@ function rollPlaceholderIcon() {
   if (hailFaceEl) hailFaceEl.style.backgroundImage = placeholderIcon;
 }
 
+rollRadioColour();
 rollPlaceholderIcon();
 rollHail();
 
@@ -778,7 +784,6 @@ function rollRadioColour() {
   document.documentElement.style.setProperty("--h", String(Math.floor(Math.random() * 360)));
 }
 
-rollRadioColour();
 lightTheFire();
 syncFire();
 
