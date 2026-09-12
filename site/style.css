@@ -203,7 +203,7 @@ a.album-name:hover { color: #ffb070; }
 /* Nothing playing yet: something rather than an empty grey hole. The drawing itself is
    picked at random by js (see PLACEHOLDER_ICONS); muted on purpose so it never competes
    with the button burning next to it. */
-#artwork.empty { background-size: 62%; }
+#artwork.empty { background-size: 62%; border: 1px solid #33333f; }
 #artwork[role="button"] { cursor: zoom-in; }
 #artwork[role="button"]:focus-visible { outline: 2px solid #c2521f; outline-offset: 3px; }
 
@@ -1146,59 +1146,59 @@ body.player-docked .player .fire { display: none; }
 }
 
 /* --- what the face says ------------------------------------------------------------
-   A speech balloon where the track name would be, pointing back at whoever is talking.
-   It only exists before the first track starts, which is also the only time that space
-   is empty. */
+   A comic speech balloon where the track name would be, with a tail pointing back at
+   whoever is talking. It only exists before the first track starts, which is also the
+   only time that space is empty. */
 #hail {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.75rem;
   margin: 0 0 0.55rem;
 }
-/* On a wide screen the face is already there, 96px of it, to the left of the controls.
-   This one is for the phone, where that thumbnail is not rendered at all. */
-#hail-face { display: none; }
+/* A frame, or the drawing dissolves into the panel behind it - the same dark the player
+   is made of. On a wide screen this one stays hidden: the 96px portrait beside the
+   controls is already doing the job. */
+#hail-face {
+  display: none;
+  flex: none;
+  width: 54px;
+  height: 54px;
+  background-color: #24242f;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 68%;
+  border: 1px solid #3a3a48;
+  border-radius: 4px;
+}
+/* Light, round and loud - the one thing on the page that is not forged out of dark
+   metal, because a speech balloon that matches its surroundings stops reading as one.
+   The hue still turns with the evening, just far up at the pale end. */
 #hail-line {
   position: relative;
   width: fit-content;
   max-width: 100%;
-  padding: 0.5rem 0.9rem;
-  background: #22222c;
-  border-radius: 3px;
-  --cut: 9px;
-  clip-path: polygon(
-    var(--cut) 0,
-    calc(100% - var(--cut)) 0,
-    100% var(--cut),
-    100% calc(100% - var(--cut)),
-    calc(100% - var(--cut)) 100%,
-    var(--cut) 100%,
-    0 calc(100% - var(--cut)),
-    0 var(--cut)
-  );
-  color: hsl(var(--h) 30% 82%);
-  font-weight: 600;
+  padding: 0.5rem 0.95rem;
+  background: hsl(var(--h) 32% 93%);
+  border-radius: 14px;
+  color: hsl(var(--h) 45% 13%);
+  font-weight: 700;
   font-size: 0.95rem;
-  letter-spacing: 0.04em;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
 }
-/* The tail is its own square rather than part of the balloon: the bevel is a clip-path,
-   and a clip cannot be told to leave one spur sticking out of it. */
+/* The tail: a plain css triangle aimed at the face on its left. */
 #hail-line::before {
   content: "";
   position: absolute;
   top: 50%;
-  left: -9px;
-  width: 12px;
-  height: 12px;
-  transform: translateY(-50%) rotate(45deg);
-  background: #22222c;
+  left: -12px;
+  width: 0;
+  height: 0;
+  transform: translateY(-50%);
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-right: 13px solid hsl(var(--h) 32% 93%);
 }
 @media (max-width: 640px) {
-  #hail-face {
-    display: block;
-    flex: none;
-    width: 44px;
-    height: 44px;
-    background: no-repeat center / contain;
-  }
+  #hail-face { display: block; }
 }
