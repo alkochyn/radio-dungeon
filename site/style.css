@@ -1201,5 +1201,13 @@ body.player-docked .player .fire { display: none; }
   border-right: 13px solid hsl(var(--h) 16% 66%);
 }
 @media (max-width: 640px) {
-  #hail-face { display: block; }
+  /* Nothing is playing, so the name plate is an empty 14px band above the balloon -
+     visible as a gap at the top of the player and belonging to nobody. It goes, and the
+     portrait grows into what it was holding. */
+  #now-head:disabled { display: none; }
+  #hail-face {
+    display: block;
+    width: 76px;
+    height: 76px;
+  }
 }
