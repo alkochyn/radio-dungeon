@@ -18,6 +18,7 @@ const radioBtn = document.getElementById("radio-btn");
 const transportEl = document.querySelector(".transport");
 const nowPlayingEl = document.querySelector(".now-playing");
 const nowHeadEl = document.getElementById("now-head");
+const searchEl = document.getElementById("search");
 const hailEl = document.getElementById("hail");
 const hailLineEl = document.getElementById("hail-line");
 const hailFaceEl = document.getElementById("hail-face");
@@ -235,6 +236,91 @@ function updateNowHead() {
 
 nowHeadEl?.addEventListener("click", enterAlbumView);
 
+// --- search --------------------------------------------------------------------------
+// Every word has to appear somewhere in the post - its text, or the name, artist or
+// album of any track in it. The whole post stays whole when it matches: the album is the
+// unit that plays, so cutting it down to the matching row would break the order.
+let searchTerms = [];
+const haystacks = new WeakMap();
+
+function postHaystack(post) {
+  let hay = haystacks.get(post);
+  if (hay === undefined) {
+    const parts = [post.message_text || ""];
+    for (const t of post.tracks) {
+      parts.push(t.title || "", t.artist || "", t.album || "");
+    }
+    hay = parts.join(" ").toLowerCase();
+    haystacks.set(post, hay);
+  }
+  return hay;
+}
+
+function matchesSearch(post) {
+  if (!searchTerms.length) return true;
+  const hay = postHaystack(post);
+  return searchTerms.every((term) => hay.includes(term));
+}
+
+// Ranges of `text` covered by any search term, merged so overlapping hits mark once.
+function matchRanges(text) {
+  if (!searchTerms.length) return [];
+  const lower = text.toLowerCase();
+  const found = [];
+  for (const term of searchTerms) {
+    let at = lower.indexOf(term);
+    while (at !== -1) {
+      found.push([at, at + term.length]);
+      at = lower.indexOf(term, at + term.length);
+    }
+  }
+  if (!found.length) return [];
+  found.sort((a, b) => a[0] - b[0]);
+  const merged = [found[0]];
+  for (const range of found.slice(1)) {
+    const last = merged[merged.length - 1];
+    if (range[0] <= last[1]) last[1] = Math.max(last[1], range[1]);
+    else merged.push(range);
+  }
+  return merged;
+}
+
+// Writes `text` into `el`, wrapping whatever the query hit. Replaces textContent at every
+// call site that can carry a match, so a card never keeps marks from an older query.
+function writeMarked(el, text) {
+  const ranges = matchRanges(text);
+  if (!ranges.length) {
+    el.textContent = text;
+    return;
+  }
+  el.textContent = "";
+  let pos = 0;
+  for (const [from, to] of ranges) {
+    if (from > pos) el.appendChild(document.createTextNode(text.slice(pos, from)));
+    el.appendChild(Object.assign(document.createElement("mark"), {
+      textContent: text.slice(from, to),
+    }));
+    pos = to;
+  }
+  if (pos < text.length) el.appendChild(document.createTextNode(text.slice(pos)));
+}
+
+function setSearch(raw) {
+  const terms = raw.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (terms.join(" ") === searchTerms.join(" ")) return;
+  searchTerms = terms;
+  shownCount = PAGE_SIZE;
+  renderPostList();
+  window.scrollTo({ top: 0 });
+}
+
+// A keystroke is cheap to match and expensive to render, so the render waits for a pause.
+let searchTimer = null;
+searchEl?.addEventListener("input", () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => setSearch(searchEl.value), 120);
+});
+
 function computeActiveList() {
   if (albumMode) {
     const post = albumPost();
@@ -242,7 +328,7 @@ function computeActiveList() {
   }
   if (preciousMode) return [preciousPost()];
 
-  const list = posts.slice();
+  const list = posts.filter(matchesSearch);
   list.sort((a, b) => {
     const da = a.message_date ? new Date(a.message_date).getTime() : 0;
     const db = b.message_date ? new Date(b.message_date).getTime() : 0;
@@ -889,10 +975,7 @@ function renderPreciousList() {
     const post = preciousPost();
     tracks.forEach((track) => postListEl.appendChild(renderTrackRow(post, track, null)));
   }
-  if (listInfoEl) {
-    listInfoEl.textContent = "";
-    listInfoEl.appendChild(backButton(() => setPreciousMode(false), "Вернуться в канал"));
-  }
+  renderViewBar();
 }
 
 // --- endless feed -------------------------------------------------------------------
@@ -918,6 +1001,9 @@ function backButton(onClick, title) {
   return back;
 }
 
+// One control at a time in this row: inside an album or the collection the way out is
+// what matters, and the search box - which only ever searches the channel - would be
+// offering to leave by a different door.
 function renderViewBar() {
   if (!listInfoEl) return;
   listInfoEl.textContent = "";
@@ -925,7 +1011,10 @@ function renderViewBar() {
     listInfoEl.appendChild(
       backButton(leaveAlbumView, "Вернуться и отдать очередь обратно каналу"),
     );
+  } else if (preciousMode) {
+    listInfoEl.appendChild(backButton(() => setPreciousMode(false), "Вернуться в канал"));
   }
+  if (searchEl) searchEl.hidden = albumMode || preciousMode;
 }
 
 function appendMorePosts() {
@@ -1037,7 +1126,7 @@ function renderPostCard(post) {
   if (post.message_text) {
     const textEl = document.createElement("div");
     textEl.className = "post-text";
-    textEl.textContent = post.message_text;
+    writeMarked(textEl, post.message_text);
     card.appendChild(textEl);
   }
 
@@ -1066,7 +1155,7 @@ function renderAlbumHeading(track) {
   if (track.album) {
     const name = document.createElement(track.album_url ? "a" : "div");
     name.className = "album-name";
-    name.textContent = track.album;
+    writeMarked(name, track.album);
     if (track.album_url) {
       name.href = track.album_url;
       name.target = "_blank";
@@ -1082,7 +1171,9 @@ function renderAlbumHeading(track) {
       className: "album-by",
       textContent: "by ",
     }));
-    by.appendChild(document.createTextNode(track.artist));
+    const who = document.createElement("span");
+    writeMarked(who, track.artist);
+    by.appendChild(who);
     heading.appendChild(by);
   }
   return heading;
@@ -1158,14 +1249,14 @@ function renderTrackRow(post, track, headingArtist) {
   meta.className = "meta";
   const titleEl = document.createElement("div");
   titleEl.className = "title";
-  titleEl.textContent = track.title;
+  writeMarked(titleEl, track.title);
   meta.appendChild(titleEl);
   // Repeating the album's artist on every one of its tracks is just noise; on a
   // compilation, where the per-track artist differs, it is the whole point.
   if (track.artist && track.artist !== headingArtist && !artistLeadsTitle(track)) {
     const artistEl = document.createElement("div");
     artistEl.className = "artist";
-    artistEl.textContent = track.artist;
+    writeMarked(artistEl, track.artist);
     meta.appendChild(artistEl);
   }
 

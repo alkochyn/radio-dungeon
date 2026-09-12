@@ -518,6 +518,23 @@ audio { display: none; }
   gap: 0.5rem 0.8rem;
   margin: 0.9rem 0.2rem 0.2rem;
 }
+#search {
+  flex: 1 1 15rem;
+  min-width: 0;
+  max-width: 22rem;
+  padding: 0.5rem 0.8rem;
+  background: #15151c;
+  border: 1px solid #2e2e3a;
+  border-radius: 3px;
+  color: #dcdce6;
+  font: inherit;
+  font-size: 0.88rem;
+}
+#search::placeholder { color: #6d6d7a; }
+#search:focus {
+  outline: none;
+  border-color: hsl(var(--h) 45% 40%);
+}
 #list-info {
   flex: 1;
   min-width: 0;
@@ -865,6 +882,8 @@ audio { display: none; }
 
 #precious-btn {
   flex: none;
+  /* Keeps its corner when the row wraps on a phone and it ends up on a line of its own. */
+  margin-left: auto;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -1210,4 +1229,14 @@ body.player-docked .player .fire { display: none; }
     width: 76px;
     height: 76px;
   }
+}
+
+/* --- search hits -------------------------------------------------------------------
+   Marked, not recoloured: the text around a hit still has to read normally, and a post
+   can be five lines of capitals with the query scattered through it. */
+mark {
+  background: hsl(var(--h) 55% 30%);
+  color: #fff;
+  border-radius: 2px;
+  padding: 0 1px;
 }
