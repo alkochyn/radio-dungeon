@@ -1,4 +1,8 @@
 * { box-sizing: border-box; }
+/* The colour of the evening. js rolls a hue here on load and on every disco press, and
+   everything tinted by it turns together. Hue only - saturation and lightness are fixed
+   at each use site, so nothing drifts out of contrast whichever colour comes up. */
+:root { --h: 18; }
 /* Some elements below also carry a `display` via a class (e.g. .chip-row), which as an
    author-stylesheet rule would otherwise beat the UA's [hidden]{display:none} - pin it
    here so the `hidden` attribute always actually hides things. */
@@ -260,7 +264,7 @@ audio { display: none; }
   align-items: center;
   justify-content: center;
   background: linear-gradient(180deg, #3a3a48 0%, #24242e 100%);
-  color: #ffd9a0;
+  color: hsl(var(--h) 95% 72%);
 }
 #play-btn svg {
   width: 46%;
@@ -269,7 +273,7 @@ audio { display: none; }
 }
 #play-btn:hover {
   background: linear-gradient(180deg, #4a4a5c 0%, #2e2e3a 100%);
-  color: #fff3e0;
+  color: hsl(var(--h) 100% 85%);
 }
 #mute-btn { width: 1.9rem; height: 1.9rem; font-size: 0.8rem; }
 
@@ -347,8 +351,6 @@ audio { display: none; }
    Deliberately not one of the transport buttons: it is not "one more way to skip a
    track", it is the whole channel on fire. So it sits apart and looks it. */
 #radio-btn {
-  /* One knob for the whole button: js rolls a hue, everything here follows it. */
-  --h: 18;
   flex: none;
   align-self: center;
   display: flex;

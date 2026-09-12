@@ -610,7 +610,9 @@ rollPlaceholderIcon();
 // Hue only: saturation and lightness stay put so it is always bright enough to read
 // white text on, whichever colour comes up.
 function rollRadioColour() {
-  if (radioBtn) radioBtn.style.setProperty("--h", String(Math.floor(Math.random() * 360)));
+  // On the root, not the button: the play icon takes the same hue, so the two turn
+  // together. One writer, and css decides who listens.
+  document.documentElement.style.setProperty("--h", String(Math.floor(Math.random() * 360)));
 }
 
 rollRadioColour();
