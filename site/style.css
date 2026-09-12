@@ -524,12 +524,6 @@ audio { display: none; }
   color: #6e6e7c;
   font-size: 0.78rem;
 }
-#feed-end {
-  color: #7e7e8c;
-  font-size: 0.78rem;
-  text-align: center;
-  padding: 1.5rem 0 0.5rem;
-}
 #category-create-form { display: flex; gap: 0.4rem; }
 #category-name-input {
   background: #14141a;
@@ -794,8 +788,9 @@ audio { display: none; }
       0 11px
     );
   }
-  /* Room under the last track for the bar that is now sitting on top of it. */
-  body.player-docked { padding-bottom: 9rem; }
+  /* Room under the last line for the bar sitting on top of it - js measures the bar
+     and sets it, see syncPlayerDock. A number written here goes stale the moment the
+     bar changes height, and it did: the credits ended up underneath it. */
   #radio-btn svg { width: 26px; height: 26px; }
 
 }

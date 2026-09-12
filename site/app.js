@@ -23,7 +23,6 @@ const playerSlot = document.getElementById("player-slot");
 const preciousBtn = document.getElementById("precious-btn");
 const preciousCountEl = document.getElementById("precious-count");
 const listInfoEl = document.getElementById("list-info");
-const feedEndEl = document.getElementById("feed-end");
 
 const UI_PREFS_KEY = "rd_player_prefs_v1";
 const PAGE_SIZE = 30; // posts appended per step - the channel has thousands of tracks,
@@ -796,7 +795,7 @@ function renderPostList() {
   } else {
     appendCards(active, 0, shownCount);
   }
-  updateFeedTail(active);
+  renderViewBar();
   topUpFeed();
 }
 
@@ -816,7 +815,6 @@ function renderPreciousList() {
     listInfoEl.textContent = "";
     listInfoEl.appendChild(backButton(() => setPreciousMode(false), "Вернуться в канал"));
   }
-  if (feedEndEl) feedEndEl.hidden = true;
 }
 
 // --- endless feed -------------------------------------------------------------------
@@ -842,17 +840,14 @@ function backButton(onClick, title) {
   return back;
 }
 
-function updateFeedTail(active) {
-  const shown = Math.min(shownCount, active.length);
-  if (listInfoEl) {
-    listInfoEl.textContent = "";
-    if (albumMode) {
-      listInfoEl.appendChild(
-        backButton(leaveAlbumView, "Вернуться и отдать очередь обратно каналу"),
-      );
-    }
+function renderViewBar() {
+  if (!listInfoEl) return;
+  listInfoEl.textContent = "";
+  if (albumMode) {
+    listInfoEl.appendChild(
+      backButton(leaveAlbumView, "Вернуться и отдать очередь обратно каналу"),
+    );
   }
-  if (feedEndEl) feedEndEl.hidden = !active.length || shown < active.length;
 }
 
 function appendMorePosts() {
@@ -861,7 +856,7 @@ function appendMorePosts() {
   const from = shownCount;
   shownCount = Math.min(shownCount + PAGE_SIZE, active.length);
   appendCards(active, from, shownCount);
-  updateFeedTail(active);
+  renderViewBar();
   return true;
 }
 
@@ -899,6 +894,11 @@ function syncPlayerDock() {
   playerDocked = shouldDock;
   document.body.classList.toggle("player-docked", shouldDock);
   if (!shouldDock) playerSlot.style.minHeight = "";
+  // Read after the class lands, so this is the bar's real height. A number in the
+  // stylesheet cannot know it: the bar grew a line and the credits went under it.
+  document.body.style.paddingBottom = shouldDock
+    ? `${playerEl.offsetHeight + 40}px`
+    : "";
   // The disco has no room of its own in a bar this short, so it joins the transport
   // beside the heart. Moving the node keeps its listeners and its state; a css-only
   // version would need a second button and two things to keep in step.
