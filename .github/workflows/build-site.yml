@@ -76,7 +76,14 @@ jobs:
           key: baked-links-${{ github.run_id }}
           restore-keys: baked-links-
 
+      # Links that would not survive until the next run are refreshed whatever triggers
+      # this - that rule ignores the budget. The budget is the extra slice refreshed
+      # early to keep expiry times spread out, and that work has nowhere to be: the four
+      # scheduled runs a day can carry it. A push waiting six minutes to publish a css
+      # change is paying for something it did not ask for.
       - name: Bake stream urls
+        env:
+          BC_REFRESH_BUDGET: ${{ github.event_name == 'schedule' && '300' || '0' }}
         run: python tools/build_site_data.py --tracks catalog/tracks.json
 
       # Saved the moment the bake is done, not at the end of the job. actions/cache

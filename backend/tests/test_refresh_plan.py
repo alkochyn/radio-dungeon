@@ -82,6 +82,20 @@ check("после раскачки прогоны ровные", max(sizes[4:]) 
       f"после раскачки {min(sizes[4:])}-{max(sizes[4:])}")
 
 
+# A push only publishes; the spreading work belongs to the scheduled runs, so those
+# builds run with no budget at all. What must never drop out is the due set - a link
+# that dies between runs is a track that will not play, whatever triggered the build.
+saved_budget = build.REFRESH_BUDGET
+build.REFRESH_BUDGET = 0
+mixed_urgency = {"dying": now - HOUR, "fine": now + TTL - HOUR}
+refresh, due = build.plan_refresh(mixed_urgency, now)
+check("без бюджета протухающее всё равно обновляется",
+      refresh == {"dying"} and due == 1, str(sorted(refresh)))
+refresh, due = build.plan_refresh({"fine": now + TTL - HOUR}, now)
+check("без бюджета и без срочного запросов нет", refresh == set() and due == 0)
+build.REFRESH_BUDGET = saved_budget
+
+
 # --- the planner and the bake loop together ----------------------------------------
 # The planner splits the catalogue into "fetch this" and "keep what you have", and the
 # loop walks both in one pass. Checked apart they each looked right, while the loop
