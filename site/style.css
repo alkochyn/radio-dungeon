@@ -535,7 +535,35 @@ audio { display: none; }
     top: 0;
     z-index: 20;
   }
-  .player { box-shadow: 0 10px 20px -12px rgba(0, 0, 0, 0.8); }
+  /* Riding over the feed, the player was the same colour as the cards passing under it.
+     A border cannot help - the bevel would cut it into loose bars - so the rim is drawn
+     as two stacked plates, the same way the docked bar does it on a phone: the player's
+     own box is the edge, and a layer inset by 2px carries the face. Cut 2px shallower
+     than the outer polygon so the edge keeps an even width around the corners. */
+  .player { background-color: #6b4a2e; }
+  .player::before {
+    content: "";
+    position: absolute;
+    inset: 2px;
+    background: #1e1e26;
+    clip-path: polygon(
+      11px 0,
+      calc(100% - 11px) 0,
+      100% 11px,
+      100% calc(100% - 11px),
+      calc(100% - 11px) 100%,
+      11px 100%,
+      0 calc(100% - 11px),
+      0 11px
+    );
+  }
+  .player > * { position: relative; }
+  /* A shadow, not a box-shadow: the bevel clips that away, which is why the one that
+     used to be here never showed. This one follows the polygon. */
+  .player { filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.55)); }
+  /* The disco ends where the control strip ends. Centred, it floated between the two
+     lines of text and the controls, belonging to neither. */
+  #radio-btn { align-self: flex-end; }
 }
 
 /* --- narrow screens ------------------------------------------------------------
