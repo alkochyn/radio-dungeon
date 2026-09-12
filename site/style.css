@@ -514,8 +514,10 @@ audio { display: none; }
 .feed-bar {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 0.5rem 0.8rem;
+  /* One row at every width: the search box belongs beside the collection button, not
+     stacked above it. The box is the half that gives way when the room runs out. */
+  flex-wrap: nowrap;
+  gap: 0.5rem;
   margin: 0.9rem 0.2rem 0.2rem;
 }
 /* Takes whatever the row has left. A fixed basis left it stranded mid-width on a narrow
@@ -914,7 +916,6 @@ audio { display: none; }
 
 #precious-btn {
   flex: none;
-  /* Keeps its corner when the row wraps on a phone and it ends up on a line of its own. */
   margin-left: auto;
   display: flex;
   align-items: center;

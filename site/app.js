@@ -239,52 +239,47 @@ function updateNowHead() {
 nowHeadEl?.addEventListener("click", enterAlbumView);
 
 // --- search --------------------------------------------------------------------------
-// Every word has to appear somewhere in the post - its text, or the name, artist or
-// album of any track in it. The whole post stays whole when it matches: the album is the
-// unit that plays, so cutting it down to the matching row would break the order.
-let searchTerms = [];
-const haystacks = new WeakMap();
+// The query is one phrase, not a bag of words: typing "hymn of rites" looks for that
+// string, and a track called "Hymn of Sorrow" is not a hit. Each field is searched
+// whole - post text, and the title, artist and album of every track - rather than one
+// joined blob, so a phrase can never match by straddling the seam between two of them.
+// The post comes back whole when any field matches: the album is the unit that plays,
+// and cutting it down to the matching row would break the order.
+let searchPhrase = "";
+const loweredFields = new WeakMap();
 
-function postHaystack(post) {
-  let hay = haystacks.get(post);
-  if (hay === undefined) {
-    const parts = [post.message_text || ""];
+function postFields(post) {
+  let fields = loweredFields.get(post);
+  if (fields === undefined) {
+    fields = [(post.message_text || "").toLowerCase()];
     for (const t of post.tracks) {
-      parts.push(t.title || "", t.artist || "", t.album || "");
+      fields.push(
+        (t.title || "").toLowerCase(),
+        (t.artist || "").toLowerCase(),
+        (t.album || "").toLowerCase(),
+      );
     }
-    hay = parts.join(" ").toLowerCase();
-    haystacks.set(post, hay);
+    loweredFields.set(post, fields);
   }
-  return hay;
+  return fields;
 }
 
 function matchesSearch(post) {
-  if (!searchTerms.length) return true;
-  const hay = postHaystack(post);
-  return searchTerms.every((term) => hay.includes(term));
+  if (!searchPhrase) return true;
+  return postFields(post).some((field) => field.includes(searchPhrase));
 }
 
-// Ranges of `text` covered by any search term, merged so overlapping hits mark once.
+// Where the phrase sits inside one piece of text, so the render can mark it.
 function matchRanges(text) {
-  if (!searchTerms.length) return [];
+  if (!searchPhrase) return [];
   const lower = text.toLowerCase();
   const found = [];
-  for (const term of searchTerms) {
-    let at = lower.indexOf(term);
-    while (at !== -1) {
-      found.push([at, at + term.length]);
-      at = lower.indexOf(term, at + term.length);
-    }
+  let at = lower.indexOf(searchPhrase);
+  while (at !== -1) {
+    found.push([at, at + searchPhrase.length]);
+    at = lower.indexOf(searchPhrase, at + searchPhrase.length);
   }
-  if (!found.length) return [];
-  found.sort((a, b) => a[0] - b[0]);
-  const merged = [found[0]];
-  for (const range of found.slice(1)) {
-    const last = merged[merged.length - 1];
-    if (range[0] <= last[1]) last[1] = Math.max(last[1], range[1]);
-    else merged.push(range);
-  }
-  return merged;
+  return found;
 }
 
 // Writes `text` into `el`, wrapping whatever the query hit. Replaces textContent at every
@@ -308,9 +303,10 @@ function writeMarked(el, text) {
 }
 
 function setSearch(raw) {
-  const terms = raw.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  if (terms.join(" ") === searchTerms.join(" ")) return;
-  searchTerms = terms;
+  // Runs of whitespace collapse so a stray double space still finds the phrase.
+  const phrase = raw.trim().toLowerCase().replace(/\s+/g, " ");
+  if (phrase === searchPhrase) return;
+  searchPhrase = phrase;
   shownCount = PAGE_SIZE;
   renderPostList();
   window.scrollTo({ top: 0 });
