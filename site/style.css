@@ -901,12 +901,12 @@ audio { display: none; }
    of this belongs on a device that cannot hover in the first place. */
 @media (hover: hover) {
   #now-head:hover:not(:disabled) { background: #1c1c26; }
+  /* Hover lights the plate, never the heart. Tinting the icon to preview the click
+     meant the colour flipped twice per like - red under the cursor, grey the moment
+     it landed, red again on the way out - and the state you were actually in was
+     whatever showed with the mouse elsewhere. The heart now answers to the click
+     alone, and the background says the button is live. */
   .like-btn:hover { background: #24242e; border-color: #3a3a48; }
-  /* Each hover shows the colour the click will leave behind: red over an empty heart,
-     grey over a full one. A brighter red on the liked heart said the opposite - it
-     looked like more like, when the click was about to take it away. */
-  .like-btn:hover::before { background-color: #b3332a; }
-  .like-btn.liked:hover::before { background-color: #7e7e8c; }
   /* The player's heart sits among the transport controls, so it behaves like one: the
      row's transparent-until-hovered treatment reads as a hole in the strip. */
   #now-like:hover:not(:disabled) { background: #3a3a48; }
