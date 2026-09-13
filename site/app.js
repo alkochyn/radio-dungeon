@@ -507,7 +507,7 @@ function activatePlayback(ref) {
   current = ref;
   audio.src = track.stream_url;
   paintSeek(0);
-  audio.play();
+  startPlayback();
   updateNowPlaying(track);
   highlightCurrentTrack();
 }
@@ -561,6 +561,7 @@ function updateSeekState() {
 function updateNowPlaying(track) {
   silenceHail();
   nowTitle.textContent = track.title;
+  updateMediaSession(track);
   updateSeekState();
   updateNowLike();
   updateNowHead();
@@ -822,10 +823,10 @@ playBtn?.addEventListener("click", () => {
   }
   if (audio.paused) {
     tally("btn/play");
-    audio.play();
+    startPlayback();
   } else {
     tally("btn/pause");
-    audio.pause();
+    stopPlayback();
   }
 });
 
@@ -1022,6 +1023,162 @@ audio.addEventListener("error", async () => {
   // tracks shows up here instead of only in listeners' silence.
   tally("error/track");
   nextTrack();
+});
+
+// --- keeping the sound alive with the screen off ------------------------------------
+// A phone puts a page it cannot see at the mercy of the system: android throttles a
+// socket nobody is watching, chrome freezes a tab that has gone quiet, and a fresh
+// play() in the background can simply be refused. None of it announces itself - the
+// music stops, and the page that would have started the next track is asleep.
+//
+// Three answers, none of them clever. Say what this page is, so the system treats it as
+// a media session rather than a tab that happens to make noise. Keep what the listener
+// asked for apart from what the element is doing, so a pause nobody asked for can be
+// undone. And watch the clock, because a stalled stream fires no `error` and would
+// otherwise wait forever.
+
+// What the listener asked for. `audio.paused` cannot answer this: the background pauses
+// us too, and that pause is the one worth fighting.
+let wantsToPlay = false;
+
+function startPlayback() {
+  wantsToPlay = true;
+  const started = audio.play();
+  if (!started || !started.catch) return;
+  started.catch(() => {
+    // Refused - almost always because the page is in the background. One retry, and
+    // after that the intent is kept: visibilitychange below picks it up when the screen
+    // comes back, rather than leaving a player that claims to be playing over silence.
+    setTimeout(() => {
+      if (wantsToPlay && audio.paused && !audio.ended) audio.play().catch(() => {});
+    }, 500);
+  });
+}
+
+function stopPlayback() {
+  wantsToPlay = false;
+  audio.pause();
+}
+
+// The lock screen is where a phone plays music from. Without this the controls there
+// are generic at best, and - the part that actually matters - chrome has no reason to
+// keep the tab alive between one track and the next.
+function updateMediaSession(track) {
+  if (!("mediaSession" in navigator) || typeof MediaMetadata !== "function") return;
+  try {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: track.title || "",
+      artist: track.artist || "",
+      album: track.album || "",
+      // The same 350px cover the player is already showing, so the notification costs
+      // no download of its own.
+      artwork: track.thumbnail
+        ? [{ src: coverUrl(track.thumbnail, ART_PLAYER), sizes: "350x350", type: "image/jpeg" }]
+        : [],
+    });
+  } catch (e) {
+    // A browser with a half-built mediaSession: the controls degrade, playback does not
+  }
+}
+
+// The scrubber on the lock screen, and what tells the system the sound is still moving.
+function syncPositionState() {
+  if (!("mediaSession" in navigator) || !navigator.mediaSession.setPositionState) return;
+  if (!isFinite(audio.duration) || audio.duration <= 0) return;
+  try {
+    navigator.mediaSession.setPositionState({
+      duration: audio.duration,
+      playbackRate: audio.playbackRate || 1,
+      position: Math.min(Math.max(audio.currentTime, 0), audio.duration),
+    });
+  } catch (e) {
+    // a position outside the range mid-seek: the next event sends it again
+  }
+}
+
+if ("mediaSession" in navigator) {
+  const bindMediaKey = (name, fn) => {
+    try {
+      navigator.mediaSession.setActionHandler(name, fn);
+    } catch (e) {
+      // an action this browser has never heard of - the others still bind
+    }
+  };
+  bindMediaKey("play", () => startPlayback());
+  bindMediaKey("pause", () => stopPlayback());
+  bindMediaKey("nexttrack", () => nextTrack());
+  bindMediaKey("previoustrack", () => prevTrack());
+  audio.addEventListener("play", () => {
+    navigator.mediaSession.playbackState = "playing";
+  });
+  audio.addEventListener("pause", () => {
+    navigator.mediaSession.playbackState = "paused";
+  });
+  audio.addEventListener("durationchange", syncPositionState);
+  audio.addEventListener("seeked", syncPositionState);
+  audio.addEventListener("play", syncPositionState);
+  audio.addEventListener("pause", syncPositionState);
+}
+
+// A stream that stops feeding fires no `error`: the element waits, a waiting player
+// makes no sound, and a page making no sound is exactly what gets frozen. So the clock
+// is watched instead. Eight seconds is slow enough to cost nothing and quick enough
+// that a listener hears a hiccup rather than a silence.
+const STALL_TICK_MS = 8000;
+let heardUpTo = 0;
+let stallStrikes = 0;
+
+function reloadCurrentStream() {
+  if (!audio.src) return;
+  const at = audio.currentTime;
+  const resume = () => {
+    audio.removeEventListener("loadedmetadata", resume);
+    // Bandcamp serves ranges, so the same stream can be picked up where it died.
+    try {
+      audio.currentTime = at;
+    } catch (e) {
+      // no seeking on this response - starting the track over still beats silence
+    }
+    startPlayback();
+  };
+  audio.addEventListener("loadedmetadata", resume);
+  audio.load();
+}
+
+setInterval(() => {
+  if (!wantsToPlay || !audio.src || audio.ended) return;
+  if (audio.paused) {
+    // Paused with nobody asking: the background did it. Ask again.
+    audio.play().catch(() => {});
+    return;
+  }
+  if (audio.currentTime > heardUpTo + 0.25) {
+    heardUpTo = audio.currentTime;
+    stallStrikes = 0;
+    return;
+  }
+  // The clock has not moved since the last tick. Nudge it, then re-request the stream
+  // from where it died, then give this track up rather than sit in silence.
+  stallStrikes++;
+  if (stallStrikes === 1) {
+    audio.play().catch(() => {});
+  } else if (stallStrikes === 2) {
+    tally("error/stall");
+    reloadCurrentStream();
+  } else {
+    stallStrikes = 0;
+    nextTrack();
+  }
+}, STALL_TICK_MS);
+
+// Coming back to the page is the one moment a frozen tab is certain to be running
+// again, so it is also the moment to notice the music stopped while we were away.
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") return;
+  if (!wantsToPlay || !audio.src || audio.ended) return;
+  heardUpTo = audio.currentTime;
+  stallStrikes = 0;
+  if (audio.paused) audio.play().catch(() => {});
 });
 
 prevBtn?.addEventListener("click", () => {
@@ -1502,8 +1659,8 @@ function renderTrackRow(post, track, headingArtist) {
     e.stopPropagation();
     if (current && current.trackId === track.id) {
       // Already the one playing: pause or pick it back up, never start it over.
-      if (audio.paused) audio.play();
-      else audio.pause();
+      if (audio.paused) startPlayback();
+      else stopPlayback();
       return;
     }
     tally("row/play");
