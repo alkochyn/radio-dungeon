@@ -30,6 +30,36 @@ const preciousBtn = document.getElementById("precious-btn");
 const preciousCountEl = document.getElementById("precious-count");
 const listInfoEl = document.getElementById("list-info");
 
+
+// --- analytics ----------------------------------------------------------------------
+// GoatCounter, loaded at the bottom of index.html: a visit counted on load, plus the
+// presses tallied below. What goes out is the name of a control and nothing else - not
+// the track, not the album, not the search query. The point is to see which parts of
+// the player get used; who used them is deliberately out of reach, the same promise
+// the likes and categories in localStorage already make.
+//
+// The script is async and a good share of the audience blocks it outright, so every
+// call here has to survive it simply not being there. Analytics is never allowed to be
+// the reason a button stops working.
+
+function tally(name) {
+  try {
+    window.goatcounter?.count?.({ path: name, event: true });
+  } catch (e) {
+    // blocked, half-loaded, offline - all of it is fine, the press already happened
+  }
+}
+
+// For the things worth counting per visitor rather than per press: one listener who
+// searched eleven times is one person who uses the search, not eleven.
+const tallied = new Set();
+
+function tallyOnce(name) {
+  if (tallied.has(name)) return;
+  tallied.add(name);
+  tally(name);
+}
+
 const UI_PREFS_KEY = "rd_player_prefs_v1";
 const PAGE_SIZE = 30; // posts appended per step - the channel has thousands of tracks,
 // so rendering the whole filtered list at once would make the page unusably heavy.
@@ -236,7 +266,10 @@ function updateNowHead() {
   nowHeadEl.title = usable ? "Открыть альбом целиком" : "";
 }
 
-nowHeadEl?.addEventListener("click", enterAlbumView);
+nowHeadEl?.addEventListener("click", () => {
+  tally("btn/album");
+  enterAlbumView();
+});
 
 // --- search --------------------------------------------------------------------------
 // The query is one phrase, not a bag of words: typing "hymn of rites" looks for that
@@ -349,6 +382,9 @@ function setSearch(raw) {
 // A keystroke is cheap to match and expensive to render, so the render waits for a pause.
 let searchTimer = null;
 searchEl?.addEventListener("input", () => {
+  // Once per visit, on the first keystroke: whether search gets used at all is the
+  // question, and counting every debounced pause would answer a different one.
+  tallyOnce("search");
   if (searchClearEl) searchClearEl.hidden = !searchEl.value;
   clearTimeout(searchTimer);
   searchTimer = setTimeout(() => setSearch(searchEl.value), 120);
@@ -411,6 +447,7 @@ function preciousPost() {
 function toggleTrackLike(track) {
   if (likedIds.has(track.id)) likedIds.delete(track.id);
   else likedIds.add(track.id);
+  tally(likedIds.has(track.id) ? "btn/like" : "btn/unlike");
   saveUserData();
   updatePreciousButton();
   updateNowLike();
@@ -439,7 +476,10 @@ function setPreciousMode(on) {
   window.scrollTo({ top: 0 });
 }
 
-preciousBtn?.addEventListener("click", () => setPreciousMode(!preciousMode));
+preciousBtn?.addEventListener("click", () => {
+  tally("btn/precious");
+  setPreciousMode(!preciousMode);
+});
 
 function flattenActive(active) {
   const flat = [];
@@ -577,7 +617,10 @@ function showPostContext() {
 }
 
 postContextEl?.addEventListener("click", (e) => {
-  if (e.target.closest("#post-context-link")) return;
+  if (e.target.closest("#post-context-link")) {
+    tally("out/telegram");
+    return;
+  }
   postContextEl.classList.toggle("expanded");
 });
 
@@ -684,7 +727,10 @@ function closeCover() {
 }
 
 artwork?.addEventListener("click", () => {
-  if (!artwork.classList.contains("empty")) openCover();
+  if (!artwork.classList.contains("empty")) {
+    tally("btn/cover");
+    openCover();
+  }
 });
 artwork?.addEventListener("keydown", (e) => {
   if (e.key === "Enter" || e.key === " ") {
@@ -763,8 +809,13 @@ playBtn?.addEventListener("click", () => {
     radioBtn?.click();
     return;
   }
-  if (audio.paused) audio.play();
-  else audio.pause();
+  if (audio.paused) {
+    tally("btn/play");
+    audio.play();
+  } else {
+    tally("btn/pause");
+    audio.pause();
+  }
 });
 
 seekEl?.addEventListener("input", () => {
@@ -779,6 +830,7 @@ seekEl?.addEventListener("change", () => {
 });
 
 muteBtn?.addEventListener("click", () => {
+  tally("btn/mute");
   audio.muted = !audio.muted;
   muteBtn.textContent = audio.muted ? "🔇" : "🔊";
   muteBtn.title = audio.muted ? "Включить звук" : "Выключить звук";
@@ -798,6 +850,10 @@ audio.addEventListener("play", syncRowPlayButtons);
 audio.addEventListener("pause", syncRowPlayButtons);
 audio.addEventListener("ended", syncRowPlayButtons);
 
+// The one number that says whether a visit turned into listening: sound actually
+// started. Once per visit - a channel played through is still one listener.
+audio.addEventListener("play", () => tallyOnce("listen"));
+
 audio.addEventListener("ended", nextTrack);
 audio.addEventListener("error", async () => {
   if (!current) return;
@@ -805,11 +861,20 @@ audio.addEventListener("error", async () => {
   // data refresh before writing the track off - the rebuild may already have run.
   if (dataLooksStale() && (await refreshDataAndRetry(current))) return;
   console.warn("Playback error, skipping to next track", current);
+  // A link the rebuild failed to keep alive. Counting these is how a rise in dead
+  // tracks shows up here instead of only in listeners' silence.
+  tally("error/track");
   nextTrack();
 });
 
-prevBtn?.addEventListener("click", prevTrack);
-nextBtn?.addEventListener("click", nextTrack);
+prevBtn?.addEventListener("click", () => {
+  tally("btn/prev");
+  prevTrack();
+});
+nextBtn?.addEventListener("click", () => {
+  tally("btn/next");
+  nextTrack();
+});
 
 function updateModeButtons() {
   // A stale index.html may not have this button. Losing a control is survivable;
@@ -960,6 +1025,7 @@ lightTheFire();
 syncFire();
 
 radioBtn?.addEventListener("click", () => {
+  tally("btn/radio");
   rollRadioColour();
   // Always a roll of the dice, never a switch you have to find your way back out of:
   // pressing it again reshuffles and throws you somewhere else in the channel. The way
@@ -1157,7 +1223,10 @@ function renderPostCard(post) {
     link.rel = "noopener noreferrer";
     link.title = "Открыть пост в Telegram";
     link.textContent = "↗";
-    link.addEventListener("click", (e) => e.stopPropagation());
+    link.addEventListener("click", (e) => {
+      e.stopPropagation();
+      tally("out/telegram");
+    });
     dateEl.appendChild(link);
   }
   header.appendChild(dateEl);
@@ -1280,6 +1349,7 @@ function renderTrackRow(post, track, headingArtist) {
       else audio.pause();
       return;
     }
+    tally("row/play");
     stopRadio();
     playNewRef({ messageId: post.message_id, trackId: track.id });
   });
@@ -1312,7 +1382,12 @@ function renderTrackRow(post, track, headingArtist) {
   buy.rel = "noopener";
   buy.textContent = "купить";
   buy.title = "Открыть на bandcamp";
-  buy.addEventListener("click", (e) => e.stopPropagation());
+  buy.addEventListener("click", (e) => {
+    e.stopPropagation();
+    // Bandcamp is where the money reaches the artist; how often the player sends
+    // someone there is worth more than any of the presses above.
+    tally("out/bandcamp");
+  });
   row.appendChild(buy);
 
   // The heart is a css mask (see .like-btn in style.css), not an svg element. Inline,
@@ -1330,6 +1405,7 @@ function renderTrackRow(post, track, headingArtist) {
   row.appendChild(like);
 
   row.addEventListener("click", () => {
+    tally("row/play");
     stopRadio();
     playNewRef({ messageId: post.message_id, trackId: track.id });
   });
