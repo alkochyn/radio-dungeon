@@ -3,13 +3,46 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>0===⁅‖⁚⁚⁚⁚RADIO DUNGEON⁚⁚⁚⁚⁚⁚≫</title>
-  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <title>0==||⁚RADIO DUNGEON⁚⁚≫</title>
+  <!-- The tab gets a weapon off the rack, a different one every load. The markup names
+       one outright so that a tab with js turned off is still armed; the script re-rolls
+       it. Each file is its own url and never changes, so nothing here needs stamping. -->
+  <link id="favicon" rel="icon" href="favicons/sword-in-stone.svg" type="image/svg+xml" />
+  <script>
+    (function () {
+      var rack = [
+        "blade-bite", "bloody-sword", "bone-mace", "chakram", "cloak-dagger",
+        "dervish-swords", "diamond-hilt", "flail", "mace-head", "relic-blade", "rune-sword",
+        "scythe", "sharp-axe", "skull-staff", "spiked-mace", "sword-brandish",
+        "sword-in-stone", "war-axe", "wood-club"
+      ];
+      document.getElementById("favicon").href =
+        "favicons/" + rack[Math.floor(Math.random() * rack.length)] + ".svg";
+    })();
+  </script>
   <link rel="stylesheet" href="style.css" />
+
+  <!-- How the link looks when someone drops it into telegram or a chat. The <title>
+       above is the page's own signage and is deliberately unreadable as plain text,
+       so the preview gets a spelled-out name instead. Urls here have to be absolute:
+       a link preview is fetched by someone else's server, with no page to resolve
+       them against. -->
+  <meta name="description" content="Веб-плеер канала @radio_dungeon: посты с треками с bandcamp, которые можно слушать прямо в браузере." />
+  <link rel="canonical" href="https://radio-dungeon.online/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="RADIO DUNGEON" />
+  <meta property="og:title" content="RADIO DUNGEON" />
+  <meta property="og:description" content="Веб-плеер канала @radio_dungeon: посты с треками с bandcamp, которые можно слушать прямо в браузере." />
+  <meta property="og:url" content="https://radio-dungeon.online/" />
+  <meta property="og:image" content="https://radio-dungeon.online/og.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="631" />
+  <meta property="og:image:alt" content="Плеер RADIO DUNGEON" />
+  <meta name="twitter:card" content="summary_large_image" />
 </head>
 <body>
   <header>
-    <h1>0<span class="blade">===⁅‖</span>⁚⁚⁚⁚RADIO DUNGEON⁚⁚⁚⁚⁚⁚<span class="blade">≫</span></h1>
+    <h1>0<span class="blade">==||</span>⁚RADIO DUNGEON⁚⁚<span class="blade">≫</span></h1>
   </header>
 
   <main>
