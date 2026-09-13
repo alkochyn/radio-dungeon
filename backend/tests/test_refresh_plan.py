@@ -20,7 +20,7 @@ import build_site_data as build  # noqa: E402
 
 HOUR = 3600
 TTL = 24 * HOUR
-INTERVAL = 6 * HOUR  # the cron in build-site.yml
+INTERVAL = 2 * HOUR  # the cron in build-site.yml
 
 failures = []
 

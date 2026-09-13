@@ -2,7 +2,7 @@
 #
 # Bandcamp hands out stream urls that stop working after 24 hours, and the static site
 # has no backend to refresh them on demand - so the whole catalogue is re-baked here on
-# a schedule and republished. Every 6 hours leaves a 4x margin against that expiry.
+# a schedule and republished. Every 2 hours leaves a 12x margin against that expiry.
 #
 # Nothing secret is involved: the channel is read through its public web preview and
 # bandcamp pages are read anonymously.
@@ -11,7 +11,7 @@ name: build-site
 
 on:
   schedule:
-    - cron: "0 */6 * * *"
+    - cron: "0 */2 * * *"
   workflow_dispatch:
   push:
     branches: [main]
@@ -64,11 +64,11 @@ jobs:
           TG_DATA_DIR: ${{ github.workspace }}/catalog
         run: python tools/sync_catalog.py
 
-      # Links live 24h and this job runs every 6, so most runs can reuse what the
+      # Links live 24h and this job runs every 2, so most runs can reuse what the
       # previous one baked and touch bandcamp for nothing at all. That only works if
-      # the previous posts.json survives between runs - it is too big to commit four
-      # times a day, so it lives in the actions cache instead. A cache miss just means
-      # a full rebake, which is correct, only slower.
+      # the previous posts.json survives between runs - it is far too big to commit a
+      # dozen times a day, so it lives in the actions cache instead. A cache miss just
+      # means a full rebake, which is correct, only slower.
       - name: Restore previously baked links
         uses: actions/cache/restore@v4
         with:
@@ -78,12 +78,16 @@ jobs:
 
       # Links that would not survive until the next run are refreshed whatever triggers
       # this - that rule ignores the budget. The budget is the extra slice refreshed
-      # early to keep expiry times spread out, and that work has nowhere to be: the four
-      # scheduled runs a day can carry it. A push waiting six minutes to publish a css
-      # change is paying for something it did not ask for.
+      # early to keep expiry times spread out, and that work has nowhere to be: the
+      # twelve scheduled runs a day can carry it. A push waiting minutes to publish a
+      # css change is paying for something it did not ask for.
+      #
+      # The number tracks the schedule: ~1000 albums that each have to be re-minted
+      # once a day, divided by 12 runs, is ~85 - 120 leaves room for a skipped run
+      # without making every run walk a slice it has no reason to touch.
       - name: Bake stream urls
         env:
-          BC_REFRESH_BUDGET: ${{ github.event_name == 'schedule' && '300' || '0' }}
+          BC_REFRESH_BUDGET: ${{ github.event_name == 'schedule' && '120' || '0' }}
         run: python tools/build_site_data.py --tracks catalog/tracks.json
 
       # Saved the moment the bake is done, not at the end of the job. actions/cache

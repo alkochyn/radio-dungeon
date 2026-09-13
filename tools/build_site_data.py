@@ -47,13 +47,13 @@ DATA_VERSION = 2
 REQUEST_DELAY = float(os.environ.get("BC_REQUEST_DELAY", "1.0"))
 
 # A link that will not survive until the next run has to be refreshed now, whatever it
-# costs: a dead link is a track that will not play. 8h covers the 6h schedule with slack
+# costs: a dead link is a track that will not play. 4h covers the 2h schedule with slack
 # for a late or skipped run.
-DUE_MARGIN = float(os.environ.get("BC_DUE_MARGIN_HOURS", "8")) * 3600
+DUE_MARGIN = float(os.environ.get("BC_DUE_MARGIN_HOURS", "4")) * 3600
 # On top of that, each run re-mints this many of the next-soonest albums early. Nothing
 # needs them yet - the point is where their new expiry lands. See the planning pass in
 # main() for why a run that has nothing due should still do work.
-REFRESH_BUDGET = int(os.environ.get("BC_REFRESH_BUDGET", "300"))
+REFRESH_BUDGET = int(os.environ.get("BC_REFRESH_BUDGET", "120"))
 TIMEOUT = 25
 USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -103,7 +103,7 @@ def plan_refresh(soonest_of: dict[str, float], now: float) -> tuple[set[str], in
              times out rather than waiting for them all to fall due together.
 
     Steady state is the catalogue divided by the runs inside one link lifetime, which
-    for ~1000 albums on a 6h schedule is ~250 albums a run, a few minutes of requests.
+    for ~1000 albums on a 2h schedule is ~85 albums a run, a minute or two of requests.
     """
     by_urgency = sorted(soonest_of, key=lambda k: soonest_of[k])
     deadline = now + DUE_MARGIN
