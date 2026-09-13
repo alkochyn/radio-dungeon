@@ -394,6 +394,86 @@ audio { display: none; }
   box-shadow: 0 0 7px rgba(255, 150, 60, 0.75);
 }
 #seek:focus-visible { outline: 2px solid #c2521f; outline-offset: 4px; }
+/* Before the first track the groove stays - it is what keeps the strip its own shape,
+   and a row that grows a bar the moment something plays would shove every button
+   sideways - but the knob goes. Parked at zero it reads as a handle, and there is
+   nothing behind it to move. */
+#seek:disabled { cursor: default; }
+#seek:disabled::-webkit-slider-runnable-track { background: #2a2a33; }
+#seek:disabled::-moz-range-track { background: #2a2a33; }
+#seek:disabled::-webkit-slider-thumb { opacity: 0; box-shadow: none; }
+#seek:disabled::-moz-range-thumb { opacity: 0; box-shadow: none; }
+
+/* --- volume ----------------------------------------------------------------------
+   The speaker keeps its old job: a click still mutes. Hovering it raises the level
+   above the strip, and that only happens where there is a pointer to hover with - a
+   touch screen gets the mute button it always had, since it has no way to open a
+   pop-out and no room in the pill to hold one open. The whole thing is hidden with
+   the `hidden` attribute from js (see openVolume), so nothing here needs a display
+   rule of its own. */
+#vol-pop {
+  position: absolute;
+  z-index: 30;
+  /* js sets left/bottom against the player box; the half-width shift is what centres
+     the column over the speaker. */
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 130px;
+  background: #22222c;
+  border: 1px solid #34343f;
+  border-radius: 3px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+}
+/* A horizontal range turned on its side. A natively vertical one is spelled three
+   different ways across browsers and styled through a fourth; turned, it is the same
+   element #seek already is, with the same track and thumb, and dragging and clicking
+   land where they look because the browser maps the pointer through the rotation. */
+#vol {
+  position: absolute;
+  width: 104px;
+  height: 18px;
+  margin: 0;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  transform: rotate(-90deg);
+  cursor: pointer;
+}
+/* Loud is up: rotated a quarter turn anticlockwise, the track's right-hand end is the
+   top one, so the same "played part burns" gradient fills from the bottom. */
+#vol::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, #d4551a var(--p, 100%), #33333f var(--p, 100%));
+}
+#vol::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, #d4551a var(--p, 100%), #33333f var(--p, 100%));
+}
+#vol::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  margin-top: -4.5px;
+  border: none;
+  border-radius: 50%;
+  background: #ffb070;
+  box-shadow: 0 0 7px rgba(255, 150, 60, 0.75);
+}
+#vol::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border: none;
+  border-radius: 50%;
+  background: #ffb070;
+  box-shadow: 0 0 7px rgba(255, 150, 60, 0.75);
+}
+#vol:focus-visible { outline: 2px solid #c2521f; outline-offset: 4px; }
 /* Prev and next flank play, the way every player has arranged them since tape decks:
    they answer the same question, and a pair of buttons stranded in their own column
    beside the disco button read as leftovers. */
@@ -518,7 +598,12 @@ audio { display: none; }
      stacked above it. The box is the half that gives way when the room runs out. */
   flex-wrap: nowrap;
   gap: 0.5rem;
-  margin: 0.9rem 0.2rem 0.2rem;
+  /* Flush with the column, like every card below it: the 0.2rem this used to carry on
+     either side set the search box and the collection button three pixels inside the
+     posts' edge, which reads as a row that missed the margin rather than one with room
+     of its own. Nothing needed it - the box marks focus with its border, not with an
+     outline that would want clearance. */
+  margin: 0.9rem 0 0.2rem;
 }
 /* Takes whatever the row has left. A fixed basis left it stranded mid-width on a narrow
    phone with dead space beside it; #list-info only ever holds the way out of a narrowed

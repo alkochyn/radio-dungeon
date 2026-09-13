@@ -8,6 +8,8 @@ const playerEl = document.querySelector(".player");
 const playBtn = document.getElementById("play-btn");
 const seekEl = document.getElementById("seek");
 const muteBtn = document.getElementById("mute-btn");
+const volPopEl = document.getElementById("vol-pop");
+const volEl = document.getElementById("vol");
 const nowLikeBtn = document.getElementById("now-like");
 const postContextEl = document.getElementById("post-context");
 const postContextLinkEl = document.getElementById("post-context-link");
@@ -548,9 +550,18 @@ function playNewRef(ref) {
   activatePlayback(ref);
 }
 
+// The bar belongs to whatever is playing, so it stays dead until something is. On a
+// first visit its knob sat at the left end of a full-width groove, which reads as a
+// handle you could drag - and there was nothing behind it to drag. Same reasoning as
+// updateNowLike() right below it.
+function updateSeekState() {
+  if (seekEl) seekEl.disabled = !current;
+}
+
 function updateNowPlaying(track) {
   silenceHail();
   nowTitle.textContent = track.title;
+  updateSeekState();
   updateNowLike();
   updateNowHead();
   // Second line carries whose album this is - the track name alone says nothing about
@@ -829,13 +840,159 @@ seekEl?.addEventListener("change", () => {
   seeking = false;
 });
 
+// --- volume -----------------------------------------------------------------------
+// The speaker mutes on a click, the way it always has. On a machine with a pointer it
+// also opens a column above the strip: click a height to set it, drag it, or roll the
+// wheel - the last one only while the cursor is over the column itself, so a roll aimed
+// at the page never quietly turns the music down on the way past.
+//
+// A touch screen gets none of it. There is no hover to open the column with, and the
+// only way to offer it would be to steal the tap that mutes.
+const canHover = window.matchMedia("(hover: hover)");
+
+let volHideTimer = null;
+
+// The popup hangs off the slot, not off the button it belongs to: the transport pill
+// and the player plate are both drawn with a clip-path, and a clip-path cuts its whole
+// subtree - inside either one the column came out sawn off at the bevel. Out here it
+// has nothing clipping it and nothing laying it out either, so its place has to be
+// measured rather than declared.
+function positionVolume() {
+  if (!volPopEl || !muteBtn || !playerSlot) return;
+  const btn = muteBtn.getBoundingClientRect();
+  const host = playerSlot.getBoundingClientRect();
+  volPopEl.style.left = `${btn.left - host.left + btn.width / 2}px`;
+  volPopEl.style.bottom = `${host.bottom - btn.top + 10}px`;
+}
+
+function openVolume() {
+  if (!volPopEl || !canHover.matches) return;
+  clearTimeout(volHideTimer);
+  volPopEl.hidden = false;
+  // Measured with the popup laid out, and every time: the player moves under the page
+  // as the feed grows, and the strip rearranges itself when a cover arrives.
+  positionVolume();
+}
+
+// A grace period, because the cursor has to cross the gap between the button and the
+// popup to reach it, and for those few pixels it is over neither.
+function closeVolume() {
+  if (!volPopEl) return;
+  clearTimeout(volHideTimer);
+  volHideTimer = setTimeout(() => {
+    // Focus holds the column open only while focus is being *shown*: clicking either
+    // the speaker or the slider leaves it focused too, and on that alone the column
+    // stayed up long after the cursor had gone. :focus-visible is the browser's own
+    // answer to "is this person on the keyboard", which is the only case that needs it.
+    const focused = document.activeElement;
+    const onTheControl = focused === muteBtn || volPopEl.contains(focused);
+    if (focused && onTheControl && focused.matches(":focus-visible")) return;
+    // And the pointer holds it open on its own terms - a blur while the cursor is
+    // still resting on the column is no reason to pull it out from under it.
+    if (muteBtn?.matches(":hover") || volPopEl.matches(":hover")) return;
+    volPopEl.hidden = true;
+  }, 160);
+}
+
+function setVolume(level) {
+  const next = Math.min(1, Math.max(0, level));
+  audio.volume = next;
+  // Dragged to the floor is muted, and raised off it is not: two ways to say the same
+  // thing that disagree are worse than either.
+  audio.muted = next === 0;
+  syncVolume();
+}
+
+function syncVolume() {
+  const level = audio.muted ? 0 : audio.volume;
+  if (volEl) {
+    volEl.value = String(Math.round(level * 100));
+    volEl.style.setProperty("--p", `${level * 100}%`);
+  }
+  if (!muteBtn) return;
+  muteBtn.textContent = level === 0 ? "🔇" : "🔊";
+  muteBtn.title = level === 0 ? "Включить звук" : "Выключить звук";
+  muteBtn.setAttribute("aria-label", muteBtn.title);
+}
+
 muteBtn?.addEventListener("click", () => {
   tally("btn/mute");
+  // Unmuting a player whose level is already nothing would be a click with no sound to
+  // show for it, so it comes back at half.
+  if (audio.muted && audio.volume === 0) audio.volume = 0.5;
   audio.muted = !audio.muted;
-  muteBtn.textContent = audio.muted ? "🔇" : "🔊";
-  muteBtn.title = audio.muted ? "Включить звук" : "Выключить звук";
-  muteBtn.setAttribute("aria-label", muteBtn.title);
+  syncVolume();
 });
+
+// Arrows on the speaker itself, so the keyboard never has to walk to the slider: it
+// lives outside the player in the markup (nothing else clears the clip-path), which
+// puts it after the disco button in the tab order, a strange place to find the volume.
+// The column still opens on focus, so the arrows have something to point at.
+muteBtn?.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && volPopEl && !volPopEl.hidden) {
+    volPopEl.hidden = true;
+    return;
+  }
+  const up = e.key === "ArrowUp" || e.key === "ArrowRight";
+  const down = e.key === "ArrowDown" || e.key === "ArrowLeft";
+  if (!up && !down) return;
+  // Or the page would scroll away under the player on every step.
+  e.preventDefault();
+  openVolume();
+  setVolume(audio.volume + (up ? 0.05 : -0.05));
+  tallyOnce("btn/volume-keys");
+});
+
+muteBtn?.addEventListener("pointerenter", openVolume);
+muteBtn?.addEventListener("pointerleave", closeVolume);
+// Reached by keyboard too: the column opens on focus, so the arrows above have
+// something to point at while they move it.
+muteBtn?.addEventListener("focus", openVolume);
+// Tabbing onward puts the column away; the guard above lets a hovering cursor keep it.
+muteBtn?.addEventListener("blur", closeVolume);
+volPopEl?.addEventListener("pointerenter", () => clearTimeout(volHideTimer));
+volPopEl?.addEventListener("pointerleave", closeVolume);
+volPopEl?.addEventListener("focusout", closeVolume);
+
+volEl?.addEventListener("input", () => setVolume(Number(volEl.value) / 100));
+// Once per grab rather than once per pixel: `input` fires all the way through a drag.
+volEl?.addEventListener("change", () => tally("btn/volume"));
+
+// The wheel is bound to the popup, which is the whole of the rule: the cursor can only
+// be over it while it is open, so a roll anywhere else scrolls the page as usual.
+volPopEl?.addEventListener(
+  "wheel",
+  (e) => {
+    e.preventDefault();
+    setVolume(audio.volume + (e.deltaY < 0 ? 0.05 : -0.05));
+    tallyOnce("btn/volume-wheel");
+  },
+  { passive: false }
+);
+
+// The strip moves under the column while it is open: a track starting gives the player
+// a title line, a cover arriving re-wraps it, a resize re-flows the lot. The column is
+// placed by measurement, so it has to be re-measured whenever the plate changes shape -
+// otherwise it hangs where the speaker used to be.
+function repositionOpenVolume() {
+  if (volPopEl && !volPopEl.hidden) positionVolume();
+}
+
+if (playerEl && window.ResizeObserver) {
+  new ResizeObserver(repositionOpenVolume).observe(playerEl);
+}
+window.addEventListener("resize", repositionOpenVolume);
+
+// Whatever moves the level - this control, a keyboard, the browser's own media keys -
+// the strip says the same thing about it.
+audio.addEventListener("volumechange", syncVolume);
+
+// A pointer that leaves for a phone-shaped window takes the column with it.
+canHover.addEventListener("change", () => {
+  if (!canHover.matches && volPopEl) volPopEl.hidden = true;
+});
+
+syncVolume();
 
 audio.addEventListener("timeupdate", syncTransport);
 audio.addEventListener("durationchange", syncTransport);
