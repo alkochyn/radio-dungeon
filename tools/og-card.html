@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<title>og card</title>
+<!--
+  The picture a chat shows when someone drops a link to the player. It is a page, not a
+  screenshot: the card that shipped before was a grab of the player window scaled by the
+  machine's own pixel ratio, which is how it ended up 1200x631 with two fifths of it
+  empty. Here the frame is stated once, at the size the meta tags promise.
+
+  Render it (chrome or msedge, either will do):
+
+    chrome --headless --disable-gpu --hide-scrollbars \
+           --force-device-scale-factor=1 --window-size=1200,630 \
+           --screenshot=site/og.png tools/og-card.html
+
+  --force-device-scale-factor=1 is the part that matters: without it the shot comes out
+  at whatever ratio the display runs at. Re-run it whenever the player's look moves on,
+  and keep og:image:width / og:image:height in site/index.html in step with the size
+  above - a chat lays out the preview box from those numbers before the file arrives.
+
+  The player here is built out of style.css rather than screenshotted, so it re-renders
+  at any size and keeps the real controls' look: same plate colour, same bevel on the
+  transport pill, same game-icons artwork, same burning seek bar. Three things the page
+  has are deliberately not on the card - the disco button, the strapline and the rack of
+  weapons: a preview is read in a second at thumbnail size, and every extra object in it
+  costs the two that matter their room.
+
+  og-avatar.jpg is the channel's own picture, taken from its public page. The drawing is
+  a circle inked inside a black square, so it is clipped to a circle here - the corners
+  are the paper it was scanned on, not part of it.
+-->
+<style>
+  /* The page's own colours, copied rather than imported: style.css is written for a
+     live player - hover states, animations, a hue js rolls on load - and none of that
+     survives a single frame anyway. The hue here is the one the site starts on. */
+  :root { --h: 18; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1200px; height: 630px; }
+  body {
+    position: relative;
+    overflow: hidden;
+    background: #14141a;
+    color: #eee;
+    font-family: system-ui, "Segoe UI", sans-serif;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 0 72px;
+  }
+
+  /* Torchlight from above and coals along the floor - the two lights the player sits
+     between on the real page, flattened into one still. */
+  .torch,
+  .coals {
+    position: absolute;
+    pointer-events: none;
+  }
+  .torch {
+    inset: -200px -120px auto -220px;
+    height: 620px;
+    background: radial-gradient(
+      50% 60% at 38% 40%,
+      hsl(var(--h) 90% 55% / 0.16) 0%,
+      hsl(var(--h) 85% 45% / 0.05) 45%,
+      transparent 72%
+    );
+  }
+  .coals {
+    inset: auto -60px -230px -60px;
+    height: 430px;
+    background: radial-gradient(
+      60% 100% at 50% 100%,
+      hsl(var(--h) 95% 50% / 0.2) 0%,
+      hsl(var(--h) 90% 45% / 0.06) 40%,
+      transparent 70%
+    );
+  }
+
+  /* --- the signage ------------------------------------------------------------- */
+  h1 {
+    /* The torch and the coals are positioned, so anything meant to read through them
+       has to be positioned too - in flow it paints underneath. */
+    position: relative;
+    font-size: 44px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1.05;
+    white-space: nowrap;
+    color: #f4f4fa;
+    text-shadow: 0 0 24px hsl(var(--h) 90% 55% / 0.25);
+  }
+  /* The blade hangs below the lettering exactly as it does in the header - see .blade
+     in style.css. */
+  .blade {
+    position: relative;
+    top: -0.09em;
+    color: #cfd2e4;
+  }
+  .rule {
+    position: relative;
+    height: 2px;
+    margin: 18px 0 28px;
+    background: linear-gradient(90deg, hsl(var(--h) 95% 55%), hsl(var(--h) 85% 30% / 0));
+  }
+
+  /* --- the player ------------------------------------------------------------- */
+  .player {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 30px;
+    padding: 30px;
+    background: #1e1e26;
+    border-radius: 2px;
+  }
+  /* The channel's drawing is round - a circle inked inside a black square, and the
+     square's corners are just the paper. */
+  .cover {
+    flex: none;
+    width: 232px;
+    height: 232px;
+    border-radius: 50%;
+    background: url("og-avatar.jpg") center / cover no-repeat;
+    box-shadow:
+      0 0 0 2px hsl(var(--h) 60% 40% / 0.55),
+      0 0 34px hsl(var(--h) 90% 50% / 0.3);
+  }
+
+  .now { flex: 1 1 auto; min-width: 0; }
+  .now-title {
+    font-size: 34px;
+    font-weight: 600;
+    color: #f0f0f6;
+    line-height: 1.2;
+  }
+  .now-title b { color: #fff; }
+
+  /* The transport pill, bevelled the way the real one is: clip-path cuts the corners,
+     which is why nothing here carries a border. */
+  .transport,
+  .transport button {
+    border: none;
+    clip-path: polygon(
+      var(--cut) 0,
+      calc(100% - var(--cut)) 0,
+      100% var(--cut),
+      100% calc(100% - var(--cut)),
+      calc(100% - var(--cut)) 100%,
+      var(--cut) 100%,
+      0 calc(100% - var(--cut)),
+      0 var(--cut)
+    );
+  }
+  .transport {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 30px;
+    padding: 14px 22px 14px 14px;
+    background: #15151c;
+    --cut: 11px;
+    border-radius: 2px;
+  }
+  .transport button {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 50px;
+    height: 50px;
+    padding: 0;
+    --cut: 8px;
+    border-radius: 2px;
+    background: #2a2a35;
+  }
+  .transport button svg { width: 52%; height: 52%; fill: #eee; }
+  /* Play is the one control that carries the evening's colour. */
+  .transport .play {
+    width: 66px;
+    height: 66px;
+    --cut: 10px;
+    background: linear-gradient(180deg, hsl(var(--h) 26% 27%) 0%, hsl(var(--h) 28% 16%) 100%);
+  }
+  .transport .play svg { fill: hsl(var(--h) 95% 72%); }
+
+  /* The played part burns, the rest is cold - the same language as the disco button. */
+  .seek {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    height: 4px;
+    border-radius: 2px;
+    background: #33333f;
+  }
+  .seek::before {
+    content: "";
+    position: absolute;
+    inset: 0 62% 0 0;
+    border-radius: 2px;
+    background: #d4551a;
+  }
+  .seek::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 38%;
+    width: 15px;
+    height: 15px;
+    margin: -7.5px 0 0 -7.5px;
+    border-radius: 50%;
+    background: #ffb070;
+    box-shadow: 0 0 8px rgba(255, 150, 60, 0.75);
+  }
+  .vol { font-size: 22px; }
+  /* On the real page the heart is a css mask - one file for a thousand rows. Here it
+     is drawn inline: a mask is a stylesheet url, and a stylesheet url does not resolve
+     over file://, so the mask silently rendered nothing. It is shown liked, because a
+     full heart says what the button is for in a picture nobody can click.
+     Icon: "heart organ" by Lorc, game-icons.net, CC BY 3.0 */
+  .heart {
+    flex: none;
+    width: 34px;
+    height: 34px;
+    fill: #c2402f;
+  }
+
+</style>
+</head>
+<body>
+  <div class="torch"></div>
+  <div class="coals"></div>
+
+  <h1>0<span class="blade">==||</span>⁚RADIO DUNGEON⁚⁚<span class="blade">≫</span></h1>
+  <div class="rule"></div>
+
+  <div class="player">
+    <div class="cover"></div>
+
+    <div class="now">
+      <div class="now-title">Веб-плеер канала <b>@radio_dungeon</b></div>
+
+      <div class="transport">
+        <!-- Icon: "falling boulder" by Lorc, game-icons.net, CC BY 3.0 - it falls
+             downward, and the page turns it a quarter turn each way so it rolls back
+             or forward. Here the turn is written into the markup. -->
+        <button style="transform: rotate(90deg)"><svg viewBox="0 0 512 512"><path d="M130.81 21.785v245.95H43.84L256 489.382l212.158-221.644H381.19V21.786h-39.118v301.028a88.07 88.07 0 0 1 .403 8.37c0 48.275-39.334 87.61-87.61 87.61-46.467 0-84.644-36.446-87.44-82.228h-.288V21.786zm127.018 8.485L230.33 261.984 212.82 133.98c-3.592 63.362-25.266 134.536-25.365 196.592 0 37.12 30.29 67.408 67.408 67.408 37.117 0 67.408-30.288 67.408-67.408 0-1.938-.1-3.854-.262-5.752-6.334-49.764-13.546-100.753-20.408-150.924l-13.422 98.135a67.938 67.938 0 0 0-1.774-.985zm-2.965 251.572a48.585 48.585 0 0 1 48.73 48.73 48.59 48.59 0 0 1-48.73 48.733 48.587 48.587 0 0 1-48.73-48.733 48.588 48.588 0 0 1 48.73-48.73z" /></svg></button>
+        <!-- Icon: "play button" by guard13007, game-icons.net, CC BY 3.0 -->
+        <button class="play"><svg viewBox="0 0 512 512"><path d="M106.854 106.002a26.003 26.003 0 0 0-25.64 29.326c16 124 16 117.344 0 241.344a26.003 26.003 0 0 0 35.776 27.332l298-124a26.003 26.003 0 0 0 0-48.008l-298-124a26.003 26.003 0 0 0-10.136-1.994z" /></svg></button>
+        <button style="transform: rotate(-90deg)"><svg viewBox="0 0 512 512"><path d="M130.81 21.785v245.95H43.84L256 489.382l212.158-221.644H381.19V21.786h-39.118v301.028a88.07 88.07 0 0 1 .403 8.37c0 48.275-39.334 87.61-87.61 87.61-46.467 0-84.644-36.446-87.44-82.228h-.288V21.786zm127.018 8.485L230.33 261.984 212.82 133.98c-3.592 63.362-25.266 134.536-25.365 196.592 0 37.12 30.29 67.408 67.408 67.408 37.117 0 67.408-30.288 67.408-67.408 0-1.938-.1-3.854-.262-5.752-6.334-49.764-13.546-100.753-20.408-150.924l-13.422 98.135a67.938 67.938 0 0 0-1.774-.985zm-2.965 251.572a48.585 48.585 0 0 1 48.73 48.73 48.59 48.59 0 0 1-48.73 48.733 48.587 48.587 0 0 1-48.73-48.733 48.588 48.588 0 0 1 48.73-48.73z" /></svg></button>
+        <div class="seek"></div>
+        <div class="vol">🔊</div>
+        <svg class="heart" viewBox="0 0 512 512"><path d="M289.188 22.72c-6.5.162-12.792 2.26-17.594 7.124-.483.488-.916.983-1.344 1.5l-.188-.188c-17.848 22.67-35.71 51.21-45.718 83.094-11.197 35.67-12.8 74.75 5.687 114.78l-16.968 7.845c-14.305-30.974-17.807-61.916-14.53-90.97-8.475 4.99-16.412 11.178-23.688 18.314-22.368-29.2-49.978-56.593-76.5-76a22.762 22.762 0 0 0-4.813-3.69c-3.378-1.922-6.98-2.86-10.624-3.03a21.12 21.12 0 0 0-1.125-.03c-.38 0-.774.016-1.155.03-5.33.203-10.67 1.93-15.438 4.563-8.72 4.816-16.545 12.77-22.5 22.937-5.954 10.168-9.036 20.86-8.906 30.78.132 9.922 3.896 20.06 12.907 25.19.368.208.753.375 1.126.56l-.126.25c27.298 16.83 63.364 39.376 86.626 67.626-6.582 22.99-7.837 46.735-2.625 67.406 15.303 60.707 62.425 115.8 113.03 150.657 25.304 17.427 51.403 29.785 74.22 35.5 22.816 5.713 41.874 4.546 53.906-2.658 27.152-16.25 45.328-45.636 56.312-80.53a116.128 116.128 0 0 1-21.625 9.874c-35.777 12.102-78.105 8.732-113.624-10.062-35.52-18.794-64.105-53.724-70.53-103.22l18.53-2.405c5.673 43.69 29.907 72.772 60.75 89.092 30.844 16.32 68.41 19.18 98.875 8.875 30.465-10.304 53.67-32.64 59.033-68.906 4.434-29.985-3.865-70.527-33.844-121.374-19.14 2.18-38.67 6.368-56.626 11.563l-5.188-17.94c12.73-3.682 26.192-6.87 39.875-9.28 2.63.22 5.328.024 8.033-.72a23.19 23.19 0 0 0 2.937-1.03c.032-.005.062-.027.094-.03-.005-.008.004-.025 0-.032 8.222-3.55 13.437-11.472 15.906-20.032 2.76-9.57 2.698-20.724-.28-32.125-2.98-11.4-8.362-21.14-15.47-28.06-5.33-5.193-12.214-9.005-19.53-9.44a22.754 22.754 0 0 0-6.783.626l-.093-.406c-16.036 5.84-33.733 13.757-51 24.125-8.947 11.378-15.964 22.483-20.5 33.375-7.047 16.92-8.512 33.12-2.438 51.438l-17.72 5.906c-7.46-22.5-5.505-44.333 2.908-64.53 7.425-17.828 19.73-34.594 34.656-51.376l-.156-.157a22.353 22.353 0 0 0 1.812-1.624c7.286-7.377 8.24-18.11 5.844-27.78-2.395-9.67-8.032-19.274-16.313-27.657l-.062-.032c-8.27-8.358-17.777-14.095-27.375-16.532a38.233 38.233 0 0 0-7.344-1.125c-.464-.024-.942-.055-1.406-.06-.435-.007-.88-.012-1.313 0zm.656 18.624c.36 0 .755 0 1.156.03 1.07.084 2.28.308 3.656.657 5.51 1.4 12.564 5.332 18.72 11.564 6.154 6.23 10.07 13.385 11.468 19.03 1.398 5.647.36 8.778-1 10.157-1.362 1.38-4.27 2.37-9.78.97-5.512-1.4-12.565-5.362-18.72-11.594-6.155-6.23-10.07-13.385-11.47-19.03-1.398-5.647-.36-8.747 1-10.126.895-.905 2.445-1.648 4.97-1.656zm-208.156 58.78c1.09.03 1.962.298 2.593.657 1.685.96 3.395 3.504 3.47 9.19.075 5.684-1.918 13.503-6.344 21.06-4.426 7.56-10.314 13.22-15.406 16.032-5.092 2.813-8.378 2.615-10.063 1.657-1.684-.96-3.393-3.504-3.468-9.19-.076-5.684 1.916-13.535 6.343-21.093 4.426-7.557 10.314-13.187 15.406-16 2.545-1.406 4.643-2.064 6.31-2.25a8.445 8.445 0 0 1 1.157-.062zm109.937 1.282c-13 .075-26.444 5.487-34 14.125 6.848 7.143 13.47 14.445 19.78 21.876 7.846-5.784 16.262-10.73 25.19-14.594 1.14-4.79 2.448-9.514 3.905-14.156.432-1.375.887-2.73 1.344-4.094-4.97-2.18-10.548-3.188-16.22-3.156zm203.125 15.78c.272-.02.57-.02.875 0 1.826.14 4.258 1.214 7.313 4.19 4.072 3.966 8.222 10.9 10.437 19.374 2.215 8.474 2.018 16.63.406 22.22-1.61 5.588-4.068 7.798-5.936 8.31-1.87.514-4.865-.095-8.938-4.06-4.072-3.968-8.223-10.902-10.437-19.376-2.216-8.474-2.02-16.63-.408-22.22 1.612-5.588 4.07-7.798 5.938-8.31.234-.066.478-.106.75-.126z" /></svg>
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>
