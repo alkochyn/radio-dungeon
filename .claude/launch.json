@@ -3,9 +3,15 @@
   "configurations": [
     {
       "name": "backend",
-      "runtimeExecutable": "python",
+      "runtimeExecutable": "backend/.venv/Scripts/python.exe",
       "runtimeArgs": ["-m", "uvicorn", "app.main:app", "--reload", "--app-dir", "backend"],
       "port": 8000
+    },
+    {
+      "name": "site",
+      "runtimeExecutable": "backend/.venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "http.server", "8080", "--directory", "site"],
+      "port": 8080
     }
   ]
 }
