@@ -544,6 +544,7 @@ function highlightCurrentTrack() {
 
 function playNewRef(ref) {
   if (!ref) return;
+  plannedNext = null;
   history = history.slice(0, historyPos + 1);
   history.push(ref);
   historyPos = history.length - 1;
@@ -694,13 +695,31 @@ function pickNext() {
   return albumMode ? null : flat[0];
 }
 
+// Chosen before it is needed, because choosing is also what says which file to fetch.
+// pickNext() cannot simply be called twice: on radio it pops from the shuffled bag, so
+// the second call would answer with a different track than the first one fetched.
+let plannedNext = null;
+
+function planNextTrack() {
+  // Stepping back through history needs no plan - those tracks are already in hand.
+  if (historyPos < history.length - 1) return null;
+  if (!plannedNext) plannedNext = pickNext();
+  return plannedNext;
+}
+
+function forgetPlannedNext() {
+  plannedNext = null;
+  warmedUrl = "";
+}
+
 function nextTrack() {
   if (historyPos < history.length - 1) {
     historyPos++;
     activatePlayback(history[historyPos]);
     return;
   }
-  const ref = pickNext();
+  const ref = plannedNext || pickNext();
+  plannedNext = null;
   if (ref) playNewRef(ref);
 }
 
@@ -1024,6 +1043,45 @@ audio.addEventListener("error", async () => {
   tally("error/track");
   nextTrack();
 });
+
+// --- fetching the next track before it is wanted ------------------------------------
+// The difference between this and a music app on the same phone was never the sound: it
+// was the seam. At the end of a track the player asked the network for the next one, and
+// a phone with the screen off is exactly where that request is slowest - the radio has
+// gone to sleep, the tab is nobody's priority. Meanwhile the page falls silent, and a
+// silent page is what chrome freezes; frozen, it never starts anything again.
+//
+// So the seam is where the network must not be. Half a minute before the end the next
+// track is chosen and pulled into the cache by a second, muted element that never plays.
+// Measured on a desktop, where the network is not even the problem: a warmed track
+// started in 26ms against 318 and 819 for cold ones. The point is not the milliseconds -
+// it is that the handover no longer needs the radio to wake up.
+const WARM_AHEAD_S = 35;
+
+const warmAudio = new Audio();
+warmAudio.preload = "auto";
+// It is never played and never heard; it exists to make the request early.
+warmAudio.muted = true;
+let warmedUrl = "";
+
+function warmNextTrack() {
+  if (!current || !isFinite(audio.duration) || audio.duration <= 0) return;
+  const left = audio.duration - audio.currentTime;
+  if (left < 0 || left > WARM_AHEAD_S) return;
+  // A listener who asked the phone to spend less data did not ask for this.
+  if (navigator.connection && navigator.connection.saveData) return;
+  const ref = planNextTrack();
+  if (!ref) return;
+  const track = findTrack(ref.trackId);
+  if (!track || !track.stream_url || track.stream_url === warmedUrl) return;
+  warmedUrl = track.stream_url;
+  // Setting src on the same element releases the previous one, so this holds one track
+  // at a time and no more.
+  warmAudio.src = track.stream_url;
+  warmAudio.load();
+}
+
+audio.addEventListener("timeupdate", warmNextTrack);
 
 // --- keeping the sound alive with the screen off ------------------------------------
 // A phone puts a page it cannot see at the mercy of the system: android throttles a
@@ -1358,6 +1416,9 @@ syncFire();
 radioBtn?.addEventListener("click", () => {
   tally("btn/radio");
   rollRadioColour();
+  // The bag is about to be reshuffled, so whatever was planned came from a bag that no
+  // longer exists.
+  forgetPlannedNext();
   // Always a roll of the dice, never a switch you have to find your way back out of:
   // pressing it again reshuffles and throws you somewhere else in the channel. The way
   // out is to pick a track yourself - see stopRadio().
@@ -1371,6 +1432,7 @@ radioBtn?.addEventListener("click", () => {
 // Choosing a specific track or post is the listener overruling chaos, so the radio
 // steps aside rather than hijacking whatever they picked once it ends.
 function stopRadio() {
+  forgetPlannedNext();
   if (!radioMode) return;
   radioMode = false;
   radioBag = [];
