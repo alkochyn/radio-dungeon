@@ -1125,8 +1125,26 @@ if ("mediaSession" in navigator) {
 // is watched instead. Eight seconds is slow enough to cost nothing and quick enough
 // that a listener hears a hiccup rather than a silence.
 const STALL_TICK_MS = 8000;
-let heardUpTo = 0;
+// Where the clock stood at the previous tick - a mark to compare against, not a high
+// water mark. It was a high water mark at first, and that broke every track after the
+// first one: track two starts at zero, which is nowhere near where track one finished,
+// so the watch read a clock that had not moved and started rescuing a stream that was
+// playing perfectly well - a nudge, a re-request you could hear as a stutter, and then
+// the track thrown away at twenty-four seconds. A seek backwards did the same thing.
+// What matters is that the position *changed*, in either direction.
+let clockWasAt = 0;
 let stallStrikes = 0;
+
+function resetStallWatch() {
+  clockWasAt = audio.currentTime;
+  stallStrikes = 0;
+}
+
+// Every moment the position legitimately jumps: a new track loading, playback picking
+// up again, a listener dragging the bar.
+audio.addEventListener("loadstart", resetStallWatch);
+audio.addEventListener("playing", resetStallWatch);
+audio.addEventListener("seeked", resetStallWatch);
 
 function reloadCurrentStream() {
   if (!audio.src) return;
@@ -1152,8 +1170,8 @@ setInterval(() => {
     audio.play().catch(() => {});
     return;
   }
-  if (audio.currentTime > heardUpTo + 0.25) {
-    heardUpTo = audio.currentTime;
+  if (Math.abs(audio.currentTime - clockWasAt) > 0.25) {
+    clockWasAt = audio.currentTime;
     stallStrikes = 0;
     return;
   }
@@ -1176,8 +1194,7 @@ setInterval(() => {
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "visible") return;
   if (!wantsToPlay || !audio.src || audio.ended) return;
-  heardUpTo = audio.currentTime;
-  stallStrikes = 0;
+  resetStallWatch();
   if (audio.paused) audio.play().catch(() => {});
 });
 
