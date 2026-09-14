@@ -404,6 +404,28 @@ audio { display: none; }
 #seek:disabled::-webkit-slider-thumb { opacity: 0; box-shadow: none; }
 #seek:disabled::-moz-range-thumb { opacity: 0; box-shadow: none; }
 
+/* --- the black box's own page --------------------------------------------------------
+   Only ever on screen with ?debug=1, and read on a phone: small, monospaced, scrolling
+   sideways rather than wrapping, because a wrapped column of numbers is unreadable. */
+#debug-log {
+  max-height: 60vh;
+  margin: 1rem 0 0.5rem;
+  padding: 0.7rem;
+  overflow: auto;
+  background: #101016;
+  border: 1px solid #2e2e3a;
+  border-radius: 3px;
+  color: #b9b9c6;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.7rem;
+  line-height: 1.5;
+  white-space: pre;
+}
+#debug-clear {
+  margin-bottom: 1rem;
+  font-size: 0.8rem;
+}
+
 /* --- volume ----------------------------------------------------------------------
    The speaker keeps its old job: a click still mutes. Hovering it raises the level
    above the strip, and that only happens where there is a pointer to hover with - a

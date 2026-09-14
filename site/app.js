@@ -1044,6 +1044,100 @@ audio.addEventListener("error", async () => {
   nextTrack();
 });
 
+// --- a black box for the screen-off problem -----------------------------------------
+// Silence with the screen off cannot be watched: by the time anyone can look, the page
+// has been asleep and whatever it saw is gone. So the player writes a short log of its
+// own - what the element did, when, and what state it was in - and keeps it in storage,
+// which survives both a frozen tab and a tab thrown out of memory. Opening the site with
+// ?debug=1 prints it back.
+//
+// It answers the question three rounds of guessing could not: a `pause` while hidden
+// means the system took the sound away; a `waiting` with the buffer level sitting at the
+// playhead means the network was cut and the sound ran out; a log that simply stops, and
+// starts again from nothing, means the tab was discarded. This comes out once the
+// question is settled.
+const LOG_KEY = "rd_player_log_v1";
+const LOG_MAX = 140;
+
+function logPlayback(name, extra) {
+  try {
+    const log = JSON.parse(localStorage.getItem(LOG_KEY) || "[]");
+    const buffered = audio.buffered.length
+      ? audio.buffered.end(audio.buffered.length - 1)
+      : 0;
+    log.push(
+      Object.assign(
+        {
+          at: new Date().toTimeString().slice(0, 8),
+          e: name,
+          t: +audio.currentTime.toFixed(1),
+          // How much sound is on the phone ahead of the needle. This is the number that
+          // tells a cut line from a system that pulled the plug.
+          ahead: +(buffered - audio.currentTime).toFixed(1),
+          paused: audio.paused,
+          ready: audio.readyState,
+          net: audio.networkState,
+          vis: document.visibilityState === "visible" ? "v" : "h",
+        },
+        extra || {}
+      )
+    );
+    while (log.length > LOG_MAX) log.shift();
+    localStorage.setItem(LOG_KEY, JSON.stringify(log));
+  } catch (e) {
+    // storage blocked or full - a diagnostic is never worth breaking playback over
+  }
+}
+
+[
+  "loadstart",
+  "play",
+  "playing",
+  "pause",
+  "waiting",
+  "stalled",
+  "suspend",
+  "ended",
+  "error",
+  "emptied",
+].forEach((name) => audio.addEventListener(name, () => logPlayback(name)));
+
+document.addEventListener("visibilitychange", () =>
+  logPlayback("page:" + document.visibilityState)
+);
+
+// Printed plainly, oldest first, because it will be read on a phone with a thumb.
+function showPlaybackLog() {
+  let log = [];
+  try {
+    log = JSON.parse(localStorage.getItem(LOG_KEY) || "[]");
+  } catch (e) {
+    log = [];
+  }
+  const box = document.createElement("pre");
+  box.id = "debug-log";
+  box.textContent =
+    log.map((r) =>
+      [r.at, r.e, "t=" + r.t, "ahead=" + r.ahead, r.paused ? "paused" : "playing",
+       "ready=" + r.ready, "net=" + r.net, r.vis].join("  ")
+    ).join("\n") || "журнал пуст";
+  const clear = document.createElement("button");
+  clear.type = "button";
+  clear.id = "debug-clear";
+  clear.textContent = "Очистить журнал";
+  clear.addEventListener("click", () => {
+    try {
+      localStorage.removeItem(LOG_KEY);
+    } catch (e) {
+      // nothing to do about it, and nothing that matters
+    }
+    box.textContent = "журнал пуст";
+  });
+  document.querySelector("main")?.prepend(box, clear);
+}
+
+if (new URLSearchParams(location.search).has("debug")) showPlaybackLog();
+
 // --- fetching the next track before it is wanted ------------------------------------
 // The difference between this and a music app on the same phone was never the sound: it
 // was the seam. At the end of a track the player asked the network for the next one, and
@@ -1090,6 +1184,7 @@ function warmNextTrack() {
   const track = findTrack(ref.trackId);
   if (!track || !track.stream_url || track.stream_url === warmedUrl) return;
   warmedUrl = track.stream_url;
+  logPlayback("warm:next");
   // Setting src on the same element releases the previous one, so this holds one track
   // at a time and no more.
   warmAudio.src = track.stream_url;
@@ -1274,7 +1369,10 @@ setInterval(() => {
     // moment anyone looks at the page again, and the lock screen's own play button is
     // wired to startPlayback().
     pausedTicks++;
-    if (pausedTicks === 1 || pausedTicks === 3 || pausedTicks === 7) tryResume();
+    if (pausedTicks === 1 || pausedTicks === 3 || pausedTicks === 7) {
+      logPlayback("watch:resume", { try: pausedTicks });
+      tryResume();
+    }
     return;
   }
   pausedTicks = 0;
@@ -1288,6 +1386,7 @@ setInterval(() => {
   // The clock has not moved since the last tick. Nudge it, then re-request the stream
   // from where it died, then give this track up rather than sit in silence.
   stallStrikes++;
+  logPlayback("watch:stalled", { strike: stallStrikes });
   if (stallStrikes === 1) {
     audio.play().catch(() => {});
   } else if (stallStrikes === 2) {
