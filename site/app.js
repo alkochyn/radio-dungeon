@@ -1,4 +1,61 @@
-const audio = document.getElementById("audio");
+// --- two players, so that the sound never stops ---------------------------------------
+// Chrome keeps a backgrounded page alive while it is audible, and the exemption "lasts
+// for several seconds after audio stops playing to allow applications to queue the next
+// audio track" - after which a phone with a dark screen freezes the page and will not
+// let it take the sound back, because android forbids restarting a media foreground
+// service from the background. Swapping src on one element puts a hole of silence in
+// exactly the wrong place: the log has watched a track start from a full buffer and be
+// paused a tenth of a second later.
+//
+// So there are two elements and the next track starts before the last one finishes.
+// Which of them is the player of record moves between them; everything else in this file
+// goes on saying `audio` and means whichever that is.
+const audioA = document.getElementById("audio");
+const audioB = audioA.cloneNode(false);
+audioB.removeAttribute("id");
+audioA.parentNode.insertBefore(audioB, audioA.nextSibling);
+const players = [audioA, audioB];
+let audio = audioA;
+
+// Listeners go on both and fire for one: an element that is not the player of record is
+// either finishing its last second or sitting empty, and neither is anybody's business.
+function onAudio(type, handler, options) {
+  const forTheActiveOne = (e) => {
+    if (e.target === audio) handler(e);
+  };
+  players.forEach((el) => el.addEventListener(type, forTheActiveOne, options));
+}
+
+function idlePlayer() {
+  return audio === audioA ? audioB : audioA;
+}
+
+// The one that has just been handed over from: it plays out its own last second and is
+// then emptied, so it is ready to be the next incoming.
+players.forEach((el) =>
+  el.addEventListener("ended", () => {
+    if (el === audio) return;
+    el.removeAttribute("src");
+    el.load();
+  })
+);
+
+// Under a flag while it is proved: ?gapless=1 turns it on, ?gapless=0 off, and the
+// choice sticks, because a tab thrown out of memory comes back without its query.
+const GAPLESS_KEY = "rd_player_gapless_v1";
+let gapless = false;
+try {
+  const asked = new URLSearchParams(location.search);
+  if (asked.has("gapless")) {
+    gapless = asked.get("gapless") !== "0";
+    localStorage.setItem(GAPLESS_KEY, gapless ? "1" : "0");
+  } else {
+    gapless = localStorage.getItem(GAPLESS_KEY) === "1";
+  }
+} catch (e) {
+  gapless = new URLSearchParams(location.search).get("gapless") === "1";
+}
+
 const nowTitle = document.getElementById("now-title");
 const nowArtist = document.getElementById("now-artist");
 const artwork = document.getElementById("artwork");
@@ -161,13 +218,13 @@ function saveResumePoint() {
   }
 }
 
-audio.addEventListener("timeupdate", () => {
+onAudio("timeupdate", () => {
   const now = Date.now();
   if (now - resumeSavedAt < RESUME_SAVE_EVERY_MS) return;
   resumeSavedAt = now;
   saveResumePoint();
 });
-audio.addEventListener("pause", saveResumePoint);
+onAudio("pause", saveResumePoint);
 // The last chance a page gets on a phone: `unload` is not delivered there.
 window.addEventListener("pagehide", saveResumePoint);
 
@@ -580,6 +637,7 @@ function activatePlayback(ref) {
   const track = findTrack(ref.trackId);
   if (!track) return;
   current = ref;
+  cancelHandoff();
   audio.src = track.stream_url;
   paintSeek(0);
   startPlayback();
@@ -1094,7 +1152,7 @@ window.addEventListener("resize", repositionOpenVolume);
 
 // Whatever moves the level - this control, a keyboard, the browser's own media keys -
 // the strip says the same thing about it.
-audio.addEventListener("volumechange", syncVolume);
+onAudio("volumechange", syncVolume);
 
 // A pointer that leaves for a phone-shaped window takes the column with it.
 canHover.addEventListener("change", () => {
@@ -1103,24 +1161,24 @@ canHover.addEventListener("change", () => {
 
 syncVolume();
 
-audio.addEventListener("timeupdate", syncTransport);
-audio.addEventListener("durationchange", syncTransport);
-audio.addEventListener("loadedmetadata", syncTransport);
-audio.addEventListener("emptied", syncTransport);
-audio.addEventListener("play", syncPlayButton);
-audio.addEventListener("pause", syncPlayButton);
-audio.addEventListener("ended", syncPlayButton);
-audio.addEventListener("play", syncFire);
-audio.addEventListener("pause", syncFire);
-audio.addEventListener("play", syncRowPlayButtons);
-audio.addEventListener("pause", syncRowPlayButtons);
-audio.addEventListener("ended", syncRowPlayButtons);
+onAudio("timeupdate", syncTransport);
+onAudio("durationchange", syncTransport);
+onAudio("loadedmetadata", syncTransport);
+onAudio("emptied", syncTransport);
+onAudio("play", syncPlayButton);
+onAudio("pause", syncPlayButton);
+onAudio("ended", syncPlayButton);
+onAudio("play", syncFire);
+onAudio("pause", syncFire);
+onAudio("play", syncRowPlayButtons);
+onAudio("pause", syncRowPlayButtons);
+onAudio("ended", syncRowPlayButtons);
 
 // The one number that says whether a visit turned into listening: sound actually
 // started. Once per visit - a channel played through is still one listener.
-audio.addEventListener("play", () => tallyOnce("listen"));
+onAudio("play", () => tallyOnce("listen"));
 
-audio.addEventListener("ended", nextTrack);
+onAudio("ended", nextTrack);
 // A failed load used to mean "next track", immediately and without limit. With the
 // network gone that emptied the queue at ten tracks a second - each one failing the same
 // way, each one a fragment of nothing, and the carefully fetched track skipped past in
@@ -1130,11 +1188,11 @@ let errorStreak = 0;
 let lastErrorAt = 0;
 let retryTimer = null;
 
-audio.addEventListener("playing", () => {
+onAudio("playing", () => {
   errorStreak = 0;
 });
 
-audio.addEventListener("error", async () => {
+onAudio("error", async () => {
   if (!current) return;
   const now = Date.now();
   errorStreak = now - lastErrorAt < 20000 ? errorStreak + 1 : 1;
@@ -1216,7 +1274,7 @@ function logPlayback(name, extra) {
   "ended",
   "error",
   "emptied",
-].forEach((name) => audio.addEventListener(name, () => logPlayback(name)));
+].forEach((name) => onAudio(name, () => logPlayback(name)));
 
 document.addEventListener("visibilitychange", () =>
   logPlayback("page:" + document.visibilityState)
@@ -1325,7 +1383,72 @@ function warmNextTrack() {
   }
 }
 
-audio.addEventListener("timeupdate", warmNextTrack);
+onAudio("timeupdate", warmNextTrack);
+
+// --- the handover ---------------------------------------------------------------------
+// Eight tenths of a second of overlap: long enough that there is no silence between the
+// two, short enough to fall inside the quiet tail almost every track ends with. The next
+// track has been fetched whole by now, so it starts instantly - which is the difference
+// between an overlap and a stutter.
+const OVERLAP_S = 0.8;
+// The source whose handover has already been started, so it is only tried once.
+let handedOverFrom = "";
+
+function cancelHandoff() {
+  handedOverFrom = "";
+  const idle = idlePlayer();
+  if (idle.currentSrc || !idle.paused) {
+    idle.pause();
+    idle.removeAttribute("src");
+    idle.load();
+  }
+}
+
+function startHandoff() {
+  if (!gapless || !wantsToPlay || audio.paused) return;
+  if (!isFinite(audio.duration) || audio.duration <= 0) return;
+  if (audio.currentTime < audio.duration - OVERLAP_S) return;
+  if (handedOverFrom === audio.currentSrc) return;
+  // Walking back through history is not a handover; it is a choice, and rare.
+  if (historyPos < history.length - 1) return;
+
+  const ref = planNextTracks()[0];
+  if (!ref) return;
+  const track = findTrack(ref.trackId);
+  if (!track || !track.stream_url) return;
+
+  handedOverFrom = audio.currentSrc;
+  const incoming = idlePlayer();
+  incoming.src = track.stream_url;
+  incoming.volume = audio.volume;
+  incoming.muted = audio.muted;
+  logPlayback("handoff:start");
+
+  const started = incoming.play();
+  if (!started || !started.then) return;
+  started
+    .then(() => {
+      // Only once it is actually making sound. If it was refused, nothing has changed
+      // and the old element reaching `ended` does the ordinary thing.
+      plannedQueue.shift();
+      history = history.slice(0, historyPos + 1);
+      history.push(ref);
+      historyPos = history.length - 1;
+      current = ref;
+      audio = incoming;
+      resetStallWatch();
+      logPlayback("handoff:done");
+      updateNowPlaying(track);
+      highlightCurrentTrack();
+    })
+    .catch(() => {
+      handedOverFrom = "";
+      logPlayback("handoff:refused");
+    });
+}
+
+onAudio("timeupdate", startHandoff);
+
 
 // --- keeping the sound alive with the screen off ------------------------------------
 // A phone puts a page it cannot see at the mercy of the system: android throttles a
@@ -1360,7 +1483,8 @@ function startPlayback() {
 
 function stopPlayback() {
   wantsToPlay = false;
-  audio.pause();
+  // Both: during a handover the other one is a second into the next track.
+  players.forEach((el) => el.pause());
 }
 
 // The lock screen is where a phone plays music from. Without this the controls there
@@ -1411,16 +1535,16 @@ if ("mediaSession" in navigator) {
   bindMediaKey("pause", () => stopPlayback());
   bindMediaKey("nexttrack", () => nextTrack());
   bindMediaKey("previoustrack", () => prevTrack());
-  audio.addEventListener("play", () => {
+  onAudio("play", () => {
     navigator.mediaSession.playbackState = "playing";
   });
-  audio.addEventListener("pause", () => {
+  onAudio("pause", () => {
     navigator.mediaSession.playbackState = "paused";
   });
-  audio.addEventListener("durationchange", syncPositionState);
-  audio.addEventListener("seeked", syncPositionState);
-  audio.addEventListener("play", syncPositionState);
-  audio.addEventListener("pause", syncPositionState);
+  onAudio("durationchange", syncPositionState);
+  onAudio("seeked", syncPositionState);
+  onAudio("play", syncPositionState);
+  onAudio("pause", syncPositionState);
 }
 
 // A stream that stops feeding fires no `error`: the element waits, a waiting player
@@ -1470,9 +1594,9 @@ function tryResume() {
 
 // Every moment the position legitimately jumps: a new track loading, playback picking
 // up again, a listener dragging the bar.
-audio.addEventListener("loadstart", resetStallWatch);
-audio.addEventListener("playing", resetStallWatch);
-audio.addEventListener("seeked", resetStallWatch);
+onAudio("loadstart", resetStallWatch);
+onAudio("playing", resetStallWatch);
+onAudio("seeked", resetStallWatch);
 
 function reloadCurrentStream() {
   if (!audio.src) return;
