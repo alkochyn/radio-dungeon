@@ -1340,6 +1340,7 @@ const WARM_AHEAD_S = 35;
 // player finds it there. Measured: fetched, then eight seconds later the element started
 // that track in 29ms with 191 of its 194 seconds already in hand.
 const warmedUrls = new Set();
+const WARM_RETRY_AFTER_MS = 15000;
 
 function warmNextTrack() {
   if (!current || !isFinite(audio.duration) || audio.duration <= 0) return;
@@ -1373,9 +1374,13 @@ function warmNextTrack() {
     fetch(track.stream_url, { mode: "no-cors" })
       .then(() => logPlayback("warm:done", { depth: depth }))
       .catch(() => {
-        // Let it be tried again rather than counting a failure as done.
-        warmedUrls.delete(track.stream_url);
+        // Let it be tried again rather than counting a failure as done - but not at
+        // once. timeupdate comes four times a second, and with the network gone that
+        // turned one dead track into ten failed requests in two seconds, which the log
+        // caught happening. A failure means the line is down; the line will not be back
+        // within a quarter of a second.
         logPlayback("warm:error", { depth: depth });
+        setTimeout(() => warmedUrls.delete(track.stream_url), WARM_RETRY_AFTER_MS);
       });
     // One per pass; timeupdate comes round again in a quarter of a second and takes the
     // next one, which keeps two downloads from starting in the same breath.
