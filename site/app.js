@@ -130,6 +130,81 @@ function coverUrl(url, size) {
 // user-named categories are gone, and their old key is left untouched rather than
 // migrated - it held albums and folders, neither of which this means.
 
+// --- where you left off --------------------------------------------------------------
+// Android takes the sound away a few minutes after the screen goes dark, and there is
+// nothing a page can do about that - bandcamp's own site, in the same browser on the
+// same phone, manages one track before it goes quiet. What a page can do is make the
+// interruption cost nothing: the track and the second are remembered, and the player
+// comes back to them.
+//
+// It comes back paused, and that is not a preference. When the tab has been thrown out
+// of memory the page starts from nothing, and a browser will not let a fresh page make
+// noise on its own - nobody asked it to. So the player is put back exactly where it
+// stood, and one press carries on.
+const RESUME_KEY = "rd_player_resume_v1";
+const RESUME_SAVE_EVERY_MS = 5000;
+let resumeSavedAt = 0;
+
+function saveResumePoint() {
+  if (!current || !isFinite(audio.currentTime)) return;
+  try {
+    localStorage.setItem(
+      RESUME_KEY,
+      JSON.stringify({
+        messageId: current.messageId,
+        trackId: current.trackId,
+        at: Math.max(0, Math.floor(audio.currentTime)),
+      })
+    );
+  } catch (e) {
+    // storage blocked or full: losing the place is survivable, throwing here is not
+  }
+}
+
+audio.addEventListener("timeupdate", () => {
+  const now = Date.now();
+  if (now - resumeSavedAt < RESUME_SAVE_EVERY_MS) return;
+  resumeSavedAt = now;
+  saveResumePoint();
+});
+audio.addEventListener("pause", saveResumePoint);
+// The last chance a page gets on a phone: `unload` is not delivered there.
+window.addEventListener("pagehide", saveResumePoint);
+
+function restoreResumePoint() {
+  let saved = null;
+  try {
+    saved = JSON.parse(localStorage.getItem(RESUME_KEY) || "null");
+  } catch (e) {
+    saved = null;
+  }
+  if (!saved || !saved.trackId) return;
+  const track = findTrack(saved.trackId);
+  // The catalogue is rebuilt every two hours and a post can leave it; and the url in it
+  // is today's, not the one that was saved - which is the point of looking the track up
+  // rather than keeping its address.
+  if (!track || !track.stream_url) return;
+
+  current = { messageId: saved.messageId, trackId: saved.trackId };
+  history = [current];
+  historyPos = 0;
+
+  const at = Number(saved.at) || 0;
+  if (at > 1) {
+    const seek = () => {
+      audio.removeEventListener("loadedmetadata", seek);
+      // A track saved on its last breath starts again rather than ending immediately.
+      if (isFinite(audio.duration) && at < audio.duration - 10) audio.currentTime = at;
+      syncTransport();
+    };
+    audio.addEventListener("loadedmetadata", seek);
+  }
+  audio.src = track.stream_url;
+  updateNowPlaying(track);
+  highlightCurrentTrack();
+  logPlayback("resume:restored", { at: at });
+}
+
 const LIKED_KEY = "rd_player_liked_v1";
 let likedIds = new Set();
 
@@ -2094,6 +2169,14 @@ async function refreshDataAndRetry(ref) {
       "Список не отрисовался",
       "Обнови страницу принудительно: Ctrl+Shift+R на компьютере, потянуть вниз на телефоне."
     );
+  }
+
+  try {
+    // After the list, because the track has to be found in it first - and last, because
+    // a player that cannot be put back is no reason for the page not to open.
+    restoreResumePoint();
+  } catch (e) {
+    console.error(e);
   }
 })();
 
