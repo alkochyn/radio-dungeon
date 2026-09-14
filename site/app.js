@@ -1101,6 +1101,7 @@ let wantsToPlay = false;
 
 function startPlayback() {
   wantsToPlay = true;
+  forgiveRefusals();
   const started = audio.play();
   if (!started || !started.catch) return;
   started.catch(() => {
@@ -1192,10 +1193,35 @@ const STALL_TICK_MS = 8000;
 // What matters is that the position *changed*, in either direction.
 let clockWasAt = 0;
 let stallStrikes = 0;
+// How many ticks in a row we have found the player paused without being asked to be.
+let pausedTicks = 0;
 
 function resetStallWatch() {
   clockWasAt = audio.currentTime;
   stallStrikes = 0;
+}
+
+// Deliberate starts - a thumb, a lock screen button, a track of our own choosing - are
+// the only things that wipe the record of being refused. Notably `playing` does not:
+// each refused attempt does start the sound for a moment before the system stops it
+// again, and counting that as success is what turned the retry into a loop that could
+// be heard chopping away at the speaker.
+function forgiveRefusals() {
+  pausedTicks = 0;
+}
+
+// Every automatic attempt goes through here, whichever of them asked - the watch, or a
+// page that has just been looked at again. A phone that means to keep us quiet answers
+// each one with a fragment of sound, so the floor is what guarantees those fragments can
+// never add up to a stutter, however often something decides to try.
+const RESUME_FLOOR_MS = 5000;
+let lastResumeAt = 0;
+
+function tryResume() {
+  const now = Date.now();
+  if (now - lastResumeAt < RESUME_FLOOR_MS) return;
+  lastResumeAt = now;
+  audio.play().catch(() => {});
 }
 
 // Every moment the position legitimately jumps: a new track loading, playback picking
@@ -1224,13 +1250,24 @@ function reloadCurrentStream() {
 setInterval(() => {
   if (!wantsToPlay || !audio.src || audio.ended) return;
   if (audio.paused) {
-    // Paused with nobody asking: the background did it. Ask again.
-    audio.play().catch(() => {});
+    // Paused with nobody asking: the background did it. Ask again - but not on every
+    // tick. When a phone has decided to keep us quiet, each attempt buys a fragment of
+    // sound before it is stopped again, and a fragment every eight seconds is worse
+    // than silence: it is audible, it is nobody's idea of playback, and it tells the
+    // listener the player is broken rather than paused. So the gaps double, and after
+    // the third refusal the watch stops asking. visibilitychange still picks it up the
+    // moment anyone looks at the page again, and the lock screen's own play button is
+    // wired to startPlayback().
+    pausedTicks++;
+    if (pausedTicks === 1 || pausedTicks === 3 || pausedTicks === 7) tryResume();
     return;
   }
+  pausedTicks = 0;
   if (Math.abs(audio.currentTime - clockWasAt) > 0.25) {
     clockWasAt = audio.currentTime;
     stallStrikes = 0;
+    // Still going a whole tick later: whatever refused us before has let go.
+    pausedTicks = 0;
     return;
   }
   // The clock has not moved since the last tick. Nudge it, then re-request the stream
@@ -1253,7 +1290,7 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "visible") return;
   if (!wantsToPlay || !audio.src || audio.ended) return;
   resetStallWatch();
-  if (audio.paused) audio.play().catch(() => {});
+  if (audio.paused) tryResume();
 });
 
 prevBtn?.addEventListener("click", () => {
