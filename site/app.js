@@ -50,10 +50,12 @@ try {
     gapless = asked.get("gapless") !== "0";
     localStorage.setItem(GAPLESS_KEY, gapless ? "1" : "0");
   } else {
-    gapless = localStorage.getItem(GAPLESS_KEY) === "1";
+    // On unless it has been turned off: twenty-four minutes and five handovers with the
+    // screen dark, against seven minutes and a stop before this existed.
+    gapless = localStorage.getItem(GAPLESS_KEY) !== "0";
   }
 } catch (e) {
-  gapless = new URLSearchParams(location.search).get("gapless") === "1";
+  gapless = new URLSearchParams(location.search).get("gapless") !== "0";
 }
 
 const nowTitle = document.getElementById("now-title");
@@ -259,7 +261,8 @@ function restoreResumePoint() {
   audio.src = track.stream_url;
   updateNowPlaying(track);
   highlightCurrentTrack();
-  logPlayback("resume:restored", { at: at });
+  // `at` is the clock in every other line; the position goes under its own name.
+  logPlayback("resume:restored", { pos: at });
 }
 
 const LIKED_KEY = "rd_player_liked_v1";
@@ -1395,12 +1398,30 @@ onAudio("timeupdate", warmNextTrack);
 // two, short enough to fall inside the quiet tail almost every track ends with. The next
 // track has been fetched whole by now, so it starts instantly - which is the difference
 // between an overlap and a stutter.
-const OVERLAP_S = 0.8;
-// The source whose handover has already been started, so it is only tried once.
+// The first version did all of this eight tenths of a second before the end, and the log
+// showed why that is not enough: three minutes into deep sleep the page was throttled so
+// hard that no timeupdate arrived inside that window at all, the handover never happened
+// and the music stopped there.
+//
+// So it is split in two, and the risky half is moved to where the page is still awake.
+// Five seconds out, while the current track is still making sound and the page is still
+// in its own right, the next one is started - silently, at zero volume. Starting playback
+// is the part a phone can refuse; it is done early, with seconds of slack.
+//
+// At the seam only the volume moves, and a volume change cannot be refused. It is
+// triggered by whichever comes first: the last tick before the end, or the outgoing
+// element's own `ended`. That second trigger is the point - `ended` fires even on a page
+// too throttled to get a timeupdate.
+const ARM_AHEAD_S = 5;
+const HANDOVER_AHEAD_S = 0.6;
+// The source whose handover has been arranged, so it is only arranged once.
 let handedOverFrom = "";
+// { incoming, outgoing, ref, track } once the next track is playing silently.
+let armed = null;
 
 function cancelHandoff() {
   handedOverFrom = "";
+  armed = null;
   const idle = idlePlayer();
   if (idle.currentSrc || !idle.paused) {
     idle.pause();
@@ -1409,10 +1430,10 @@ function cancelHandoff() {
   }
 }
 
-function startHandoff() {
-  if (!gapless || !wantsToPlay || audio.paused) return;
+function armHandoff() {
+  if (!gapless || armed || !wantsToPlay || audio.paused) return;
   if (!isFinite(audio.duration) || audio.duration <= 0) return;
-  if (audio.currentTime < audio.duration - OVERLAP_S) return;
+  if (audio.currentTime < audio.duration - ARM_AHEAD_S) return;
   if (handedOverFrom === audio.currentSrc) return;
   // Walking back through history is not a handover; it is a choice, and rare.
   if (historyPos < history.length - 1) return;
@@ -1423,28 +1444,21 @@ function startHandoff() {
   if (!track || !track.stream_url) return;
 
   handedOverFrom = audio.currentSrc;
+  const outgoing = audio;
   const incoming = idlePlayer();
   incoming.src = track.stream_url;
-  incoming.volume = audio.volume;
-  incoming.muted = audio.muted;
-  logPlayback("handoff:start");
+  incoming.volume = 0;
+  incoming.muted = outgoing.muted;
+  logPlayback("handoff:arm");
 
   const started = incoming.play();
   if (!started || !started.then) return;
   started
     .then(() => {
-      // Only once it is actually making sound. If it was refused, nothing has changed
-      // and the old element reaching `ended` does the ordinary thing.
-      plannedQueue.shift();
-      history = history.slice(0, historyPos + 1);
-      history.push(ref);
-      historyPos = history.length - 1;
-      current = ref;
-      audio = incoming;
-      resetStallWatch();
-      logPlayback("handoff:done");
-      updateNowPlaying(track);
-      highlightCurrentTrack();
+      armed = { incoming: incoming, outgoing: outgoing, ref: ref, track: track };
+      // The safety net for a page too asleep to be given a timeupdate.
+      outgoing.addEventListener("ended", handOver, { once: true });
+      logPlayback("handoff:armed");
     })
     .catch(() => {
       handedOverFrom = "";
@@ -1452,7 +1466,42 @@ function startHandoff() {
     });
 }
 
-onAudio("timeupdate", startHandoff);
+function handOver() {
+  if (!armed) return;
+  const { incoming, outgoing, ref, track } = armed;
+  if (outgoing !== audio) return;
+  armed = null;
+
+  // It has been playing silently for a few seconds, so it is a few seconds in.
+  try {
+    incoming.currentTime = 0;
+  } catch (e) {
+    // not seekable for some reason: a few seconds lost beats silence
+  }
+  incoming.volume = outgoing.volume;
+  incoming.muted = outgoing.muted;
+
+  plannedQueue.shift();
+  history = history.slice(0, historyPos + 1);
+  history.push(ref);
+  historyPos = history.length - 1;
+  current = ref;
+  audio = incoming;
+  resetStallWatch();
+  logPlayback("handoff:done");
+  updateNowPlaying(track);
+  highlightCurrentTrack();
+}
+
+function handOverIfDue() {
+  if (!armed) return;
+  if (!isFinite(audio.duration) || audio.duration <= 0) return;
+  if (audio.currentTime < audio.duration - HANDOVER_AHEAD_S) return;
+  handOver();
+}
+
+onAudio("timeupdate", armHandoff);
+onAudio("timeupdate", handOverIfDue);
 
 
 // --- keeping the sound alive with the screen off ------------------------------------
@@ -1488,8 +1537,9 @@ function startPlayback() {
 
 function stopPlayback() {
   wantsToPlay = false;
-  // Both: during a handover the other one is a second into the next track.
+  // Both: during a handover the other one is already playing, silently, underneath.
   players.forEach((el) => el.pause());
+  cancelHandoff();
 }
 
 // The lock screen is where a phone plays music from. Without this the controls there
