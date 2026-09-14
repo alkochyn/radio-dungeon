@@ -1439,7 +1439,27 @@ onAudio("timeupdate", warmNextTrack);
 // triggered by whichever comes first: the last tick before the end, or the outgoing
 // element's own `ended`. That second trigger is the point - `ended` fires even on a page
 // too throttled to get a timeupdate.
-const ARM_AHEAD_S = 5;
+// How long before the end the next track is started, silently. Five seconds buys slack
+// against a throttled page that may not be given a tick inside a narrow window - but a
+// second element rolling quietly alongside the first for that long is also the thing the
+// phone might object to, and the twenty-four minute run happened at 0.8 with no quiet
+// roll at all. So it is adjustable from the address bar while the two are compared:
+// ?arm=0.8 is the older behaviour, ?arm=5 the newer, and the choice sticks the way the
+// gapless flag does.
+const ARM_KEY = "rd_player_arm_v1";
+let ARM_AHEAD_S = 5;
+try {
+  const asked = new URLSearchParams(location.search).get("arm");
+  if (asked !== null && isFinite(Number(asked))) {
+    ARM_AHEAD_S = Math.min(30, Math.max(0.3, Number(asked)));
+    localStorage.setItem(ARM_KEY, String(ARM_AHEAD_S));
+  } else {
+    const kept = Number(localStorage.getItem(ARM_KEY));
+    if (isFinite(kept) && kept > 0) ARM_AHEAD_S = kept;
+  }
+} catch (e) {
+  // storage blocked: the default stands
+}
 const HANDOVER_AHEAD_S = 0.6;
 // The source whose handover has been arranged, so it is only arranged once.
 let handedOverFrom = "";
@@ -1476,7 +1496,7 @@ function armHandoff() {
   incoming.src = track.stream_url;
   incoming.volume = 0;
   incoming.muted = outgoing.muted;
-  logPlayback("handoff:arm");
+  logPlayback("handoff:arm", { lead: ARM_AHEAD_S });
 
   const started = incoming.play();
   if (!started || !started.then) return;
@@ -1523,7 +1543,10 @@ function handOver() {
 function handOverIfDue() {
   if (!armed) return;
   if (!isFinite(audio.duration) || audio.duration <= 0) return;
-  if (audio.currentTime < audio.duration - HANDOVER_AHEAD_S) return;
+  // On a short lead the arm itself lands inside the handover window, so the two would
+  // fire in the same tick; the mark is whichever is nearer the end.
+  const mark = Math.min(HANDOVER_AHEAD_S, ARM_AHEAD_S / 2);
+  if (audio.currentTime < audio.duration - mark) return;
   handOver();
 }
 
