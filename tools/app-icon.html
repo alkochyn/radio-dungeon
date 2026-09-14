@@ -8,13 +8,23 @@
   card - the channel's own, a circle inked inside a black square - on the page's own
   near-black, with the ember ring the player wears everywhere else.
 
-  Rendered at whatever the window is, so one file makes every size:
+  Rendered at whatever the layout is, so one file makes every size. Two things bite
+  here, and both bit once already:
 
-    chrome --headless --disable-gpu --hide-scrollbars --force-device-scale-factor=1 \
-           --window-size=512,512 --screenshot=site/icons/app-512.png tools/app-icon.html
-    chrome ... --window-size=192,192 --screenshot=site/icons/app-192.png tools/app-icon.html
-    chrome ... --window-size=512,512 --screenshot=site/icons/app-maskable-512.png \
-           "tools/app-icon.html?maskable"
+  A window smaller than the desktop minimum is quietly ignored - asking for 192x192
+  gives a 192x192 crop of a much larger page, which came out as a stretched sliver of
+  the drawing. So the layout is always 512 and the scale factor does the shrinking.
+
+  And an argument with a query string has to be a real file:// url. Handed
+  "tools/app-icon.html?maskable", chrome decides it is a search, opens its own new tab
+  page and screenshots that - which is how the install dialog came to offer a picture
+  of the Google search box as the app's icon.
+
+    chrome --headless --disable-gpu --hide-scrollbars --window-size=512,512            --force-device-scale-factor=1            --screenshot=site/icons/app-512.png            file:///ABS/PATH/tools/app-icon.html
+
+    chrome ... --force-device-scale-factor=0.375 --window-size=512,512            --screenshot=site/icons/app-192.png file:///ABS/PATH/tools/app-icon.html
+
+    chrome ... --force-device-scale-factor=1 --window-size=512,512            --screenshot=site/icons/app-maskable-512.png            "file:///ABS/PATH/tools/app-icon.html?maskable"
 
   ?maskable pulls the drawing into the middle 60% and fills the rest with the plate:
   android crops a maskable icon to whatever shape the launcher uses, and anything
