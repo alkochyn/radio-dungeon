@@ -544,7 +544,8 @@ function highlightCurrentTrack() {
 
 function playNewRef(ref) {
   if (!ref) return;
-  plannedNext = null;
+  // A track picked by hand answers a different question than the plan was made for.
+  if (!plannedQueue.length || plannedQueue[0].trackId !== ref.trackId) plannedQueue = [];
   history = history.slice(0, historyPos + 1);
   history.push(ref);
   historyPos = history.length - 1;
@@ -679,16 +680,19 @@ function pickRandomFromChannel() {
   return ref || null;
 }
 
-function pickNext() {
+// `after` is what the question is asked from - normally whatever is playing, but the
+// planner asks it again from the track it has just planned, to see two moves ahead.
+function pickNext(after) {
+  const from = after || current;
   // The radio ignores the filter on purpose: it plays the channel, not the view.
   if (radioMode) return pickRandomFromChannel();
 
   const active = computeActiveList();
   const flat = flattenActive(active);
   if (!flat.length) return null;
-  if (!current) return flat[0];
+  if (!from) return flat[0];
 
-  const idx = flat.findIndex((r) => r.trackId === current.trackId);
+  const idx = flat.findIndex((r) => r.trackId === from.trackId);
   if (idx === -1) return flat[0];
   if (idx + 1 < flat.length) return flat[idx + 1];
   // The feed loops back to the top; an album just ends, the way an album does.
@@ -698,18 +702,29 @@ function pickNext() {
 // Chosen before it is needed, because choosing is also what says which file to fetch.
 // pickNext() cannot simply be called twice: on radio it pops from the shuffled bag, so
 // the second call would answer with a different track than the first one fetched.
-let plannedNext = null;
+// Two tracks, not one. One was enough for a seam; it is not enough for a phone whose
+// network is taken away for the next ten minutes - the log showed the fetch at the seam
+// failing outright (NETWORK_NO_SOURCE) while the track already in the cache started
+// instantly. Depth is the only thing that buys time against a line that is simply gone.
+const PLAN_AHEAD = 2;
+let plannedQueue = [];
 
-function planNextTrack() {
+function planNextTracks() {
   // Stepping back through history needs no plan - those tracks are already in hand.
-  if (historyPos < history.length - 1) return null;
-  if (!plannedNext) plannedNext = pickNext();
-  return plannedNext;
+  if (historyPos < history.length - 1) return plannedQueue;
+  while (plannedQueue.length < PLAN_AHEAD) {
+    const from = plannedQueue.length ? plannedQueue[plannedQueue.length - 1] : current;
+    const ref = pickNext(from);
+    if (!ref) break;
+    if (plannedQueue.some((r) => r.trackId === ref.trackId)) break;
+    plannedQueue.push(ref);
+  }
+  return plannedQueue;
 }
 
 function forgetPlannedNext() {
-  plannedNext = null;
-  warmedUrl = "";
+  plannedQueue = [];
+  warmedUrls.clear();
 }
 
 function nextTrack() {
@@ -718,8 +733,7 @@ function nextTrack() {
     activatePlayback(history[historyPos]);
     return;
   }
-  const ref = plannedNext || pickNext();
-  plannedNext = null;
+  const ref = plannedQueue.shift() || pickNext();
   if (ref) playNewRef(ref);
 }
 
@@ -1032,8 +1046,35 @@ audio.addEventListener("ended", syncRowPlayButtons);
 audio.addEventListener("play", () => tallyOnce("listen"));
 
 audio.addEventListener("ended", nextTrack);
+// A failed load used to mean "next track", immediately and without limit. With the
+// network gone that emptied the queue at ten tracks a second - each one failing the same
+// way, each one a fragment of nothing, and the carefully fetched track skipped past in
+// the stampede. Three failures in a row are not three bad tracks, they are a line that
+// is down, and the answer to that is to wait and ask again for the same track.
+let errorStreak = 0;
+let lastErrorAt = 0;
+let retryTimer = null;
+
+audio.addEventListener("playing", () => {
+  errorStreak = 0;
+});
+
 audio.addEventListener("error", async () => {
   if (!current) return;
+  const now = Date.now();
+  errorStreak = now - lastErrorAt < 20000 ? errorStreak + 1 : 1;
+  lastErrorAt = now;
+  logPlayback("track:error", { streak: errorStreak });
+  if (errorStreak >= 3) {
+    tally("error/offline");
+    clearTimeout(retryTimer);
+    // The same track again, once the line has had time to come back. Not the next one:
+    // there is nothing wrong with this one that waiting will not fix.
+    retryTimer = setTimeout(() => {
+      if (wantsToPlay && current) activatePlayback(current);
+    }, 15000);
+    return;
+  }
   // A link past its 24h expiry fails exactly like a dropped connection, so try one
   // data refresh before writing the track off - the rebuild may already have run.
   if (dataLooksStale() && (await refreshDataAndRetry(current))) return;
@@ -1156,7 +1197,16 @@ const warmAudio = new Audio();
 warmAudio.preload = "auto";
 // It is never played and never heard; it exists to make the request early.
 warmAudio.muted = true;
-let warmedUrl = "";
+// One element fetches them in turn: once it has a file, the browser's cache keeps it,
+// so pointing the element at the next url does not lose the last one.
+const warmedUrls = new Set();
+let warmBusy = false;
+
+["suspend", "canplaythrough", "error", "abort"].forEach((e) =>
+  warmAudio.addEventListener(e, () => {
+    warmBusy = false;
+  })
+);
 
 function warmNextTrack() {
   if (!current || !isFinite(audio.duration) || audio.duration <= 0) return;
@@ -1179,16 +1229,19 @@ function warmNextTrack() {
   if (!currentTrackIsInHand && left > WARM_AHEAD_S) return;
   // A listener who asked the phone to spend less data did not ask for this.
   if (navigator.connection && navigator.connection.saveData) return;
-  const ref = planNextTrack();
-  if (!ref) return;
-  const track = findTrack(ref.trackId);
-  if (!track || !track.stream_url || track.stream_url === warmedUrl) return;
-  warmedUrl = track.stream_url;
-  logPlayback("warm:next");
-  // Setting src on the same element releases the previous one, so this holds one track
-  // at a time and no more.
-  warmAudio.src = track.stream_url;
-  warmAudio.load();
+  if (warmBusy) return;
+  for (const ref of planNextTracks()) {
+    const track = findTrack(ref.trackId);
+    if (!track || !track.stream_url || warmedUrls.has(track.stream_url)) continue;
+    warmedUrls.add(track.stream_url);
+    // Only ever a couple of tracks deep, so the set cannot grow into a leak.
+    if (warmedUrls.size > 6) warmedUrls.delete(warmedUrls.values().next().value);
+    warmBusy = true;
+    logPlayback("warm:next", { depth: plannedQueue.indexOf(ref) + 1 });
+    warmAudio.src = track.stream_url;
+    warmAudio.load();
+    return;
+  }
 }
 
 audio.addEventListener("timeupdate", warmNextTrack);
