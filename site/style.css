@@ -421,8 +421,9 @@ audio { display: none; }
   line-height: 1.5;
   white-space: pre;
 }
+#debug-copy,
 #debug-clear {
-  margin-bottom: 1rem;
+  margin: 0 0.5rem 1rem 0;
   font-size: 0.8rem;
 }
 

@@ -1323,6 +1323,45 @@ function showPlaybackLog() {
       [r.at, r.e, "t=" + r.t, "ahead=" + r.ahead, r.paused ? "paused" : "playing",
        "ready=" + r.ready, "net=" + r.net, r.vis].join("  ")
     ).join("\n") || "журнал пуст";
+  // Read on a phone, where selecting a hundred lines with a thumb is its own ordeal.
+  const copy = document.createElement("button");
+  copy.type = "button";
+  copy.id = "debug-copy";
+  copy.textContent = "Скопировать всё";
+  copy.addEventListener("click", () => {
+    const say = (what) => {
+      copy.textContent = what;
+      setTimeout(() => {
+        copy.textContent = "Скопировать всё";
+      }, 2000);
+    };
+    const text = box.textContent;
+    const clipboard = navigator.clipboard;
+    if (clipboard && clipboard.writeText) {
+      clipboard.writeText(text).then(
+        () => say("Скопировано"),
+        () => selectInstead(say)
+      );
+      return;
+    }
+    selectInstead(say);
+  });
+
+  // When the clipboard is refused - no permission, or a page served over plain http -
+  // the next best thing is handing over a selection already made.
+  function selectInstead(say) {
+    try {
+      const range = document.createRange();
+      range.selectNodeContents(box);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      say("Выделено — скопируйте сами");
+    } catch (e) {
+      say("Не вышло");
+    }
+  }
+
   const clear = document.createElement("button");
   clear.type = "button";
   clear.id = "debug-clear";
@@ -1335,7 +1374,7 @@ function showPlaybackLog() {
     }
     box.textContent = "журнал пуст";
   });
-  document.querySelector("main")?.prepend(box, clear);
+  document.querySelector("main")?.prepend(box, copy, clear);
 }
 
 if (new URLSearchParams(location.search).has("debug")) showPlaybackLog();
