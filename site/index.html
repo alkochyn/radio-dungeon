@@ -22,6 +22,26 @@
   </script>
   <link rel="stylesheet" href="style.css?v=f06de23ad4" />
 
+  <!-- Installed rather than bookmarked. Android hands an installed app a longer leash in
+       the background than it hands a browser tab, and the player kept losing its sound a
+       few minutes after the screen went dark - so it is worth being an app. Chrome only
+       builds a real one when it finds a manifest, icons and a worker that can answer
+       offline; see sw.js, which is the smallest thing that qualifies. -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#14141a" />
+  <link rel="apple-touch-icon" href="icons/app-192.png" />
+  <script>
+    if ("serviceWorker" in navigator) {
+      // After load: registering it is never urgent, and the feed is.
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("sw.js").catch(function () {
+          // No worker means no installed app, which is a smaller loss than a page that
+          // refuses to start over it.
+        });
+      });
+    }
+  </script>
+
   <!-- How the link looks when someone drops it into telegram or a chat. The <title>
        above is the page's own signage and is deliberately unreadable as plain text,
        so the preview gets a spelled-out name instead. Urls here have to be absolute:

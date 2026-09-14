@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<title>app icon</title>
+<!--
+  The icon an installed player gets on a home screen. Same drawing as the link preview
+  card - the channel's own, a circle inked inside a black square - on the page's own
+  near-black, with the ember ring the player wears everywhere else.
+
+  Rendered at whatever the window is, so one file makes every size:
+
+    chrome --headless --disable-gpu --hide-scrollbars --force-device-scale-factor=1 \
+           --window-size=512,512 --screenshot=site/icons/app-512.png tools/app-icon.html
+    chrome ... --window-size=192,192 --screenshot=site/icons/app-192.png tools/app-icon.html
+    chrome ... --window-size=512,512 --screenshot=site/icons/app-maskable-512.png \
+           "tools/app-icon.html?maskable"
+
+  ?maskable pulls the drawing into the middle 60% and fills the rest with the plate:
+  android crops a maskable icon to whatever shape the launcher uses, and anything
+  outside that circle is liable to be cut away.
+-->
+<style>
+  :root { --h: 18; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; }
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #14141a;
+    overflow: hidden;
+  }
+  /* A little light behind it, so the circle does not sit on flat black. */
+  body::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      60% 60% at 50% 45%,
+      hsl(var(--h) 90% 50% / 0.22) 0%,
+      hsl(var(--h) 85% 40% / 0.06) 55%,
+      transparent 75%
+    );
+  }
+  .art {
+    position: relative;
+    width: 92%;
+    height: 92%;
+    border-radius: 50%;
+    background: url("og-avatar.jpg") center / cover no-repeat;
+    box-shadow:
+      0 0 0 1.5% hsl(var(--h) 70% 45% / 0.7),
+      0 0 8% hsl(var(--h) 90% 50% / 0.45);
+  }
+  /* Cropped by the launcher to a shape nobody can predict: keep it well inside. */
+  body.maskable .art { width: 62%; height: 62%; }
+</style>
+</head>
+<body>
+  <div class="art"></div>
+  <script>
+    if (location.search.includes("maskable")) document.body.classList.add("maskable");
+  </script>
+</body>
+</html>
