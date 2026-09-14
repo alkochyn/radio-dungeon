@@ -863,7 +863,13 @@ function pickNext(after) {
 // network is taken away for the next ten minutes - the log showed the fetch at the seam
 // failing outright (NETWORK_NO_SOURCE) while the track already in the cache started
 // instantly. Depth is the only thing that buys time against a line that is simply gone.
-const PLAN_AHEAD = 2;
+// Two was the number for covering a seam. The log showed a run where the network died
+// three minutes into the dark and never came back: every fetch after that failed, and
+// when the one cached track ran out there was nothing to hand over to. So the queue is
+// no longer about the seam - it is about how long the phone can play with no line at
+// all. Five tracks is something like twenty minutes of it, and they are fetched while
+// the screen is still on and the network still answers.
+const PLAN_AHEAD = 5;
 let plannedQueue = [];
 
 function planNextTracks() {
@@ -1370,7 +1376,13 @@ const WARM_AHEAD_S = 35;
 // player finds it there. Measured: fetched, then eight seconds later the element started
 // that track in 29ms with 191 of its 194 seconds already in hand.
 const warmedUrls = new Set();
-const WARM_RETRY_AFTER_MS = 15000;
+// Fifteen seconds was right for a hiccup and wrong for what actually happens: the log
+// shows a line that went away for four minutes, asked sixteen times, refused sixteen
+// times. Each failure pushes the next attempt further out, up to two minutes, and a
+// success puts it back to the start.
+const WARM_RETRY_BASE_MS = 15000;
+const WARM_RETRY_MAX_MS = 120000;
+let warmFailures = 0;
 
 function warmNextTrack() {
   if (!current || !isFinite(audio.duration) || audio.duration <= 0) return;
@@ -1398,19 +1410,26 @@ function warmNextTrack() {
     if (!track || !track.stream_url || warmedUrls.has(track.stream_url)) continue;
     warmedUrls.add(track.stream_url);
     // Only ever a couple of tracks deep, so the set cannot grow into a leak.
-    if (warmedUrls.size > 6) warmedUrls.delete(warmedUrls.values().next().value);
+    if (warmedUrls.size > PLAN_AHEAD * 3) {
+      warmedUrls.delete(warmedUrls.values().next().value);
+    }
     const depth = plannedQueue.indexOf(ref) + 1;
     logPlayback("warm:next", { depth: depth });
     fetch(track.stream_url, { mode: "no-cors" })
-      .then(() => logPlayback("warm:done", { depth: depth }))
+      .then(() => {
+        warmFailures = 0;
+        logPlayback("warm:done", { depth: depth });
+      })
       .catch(() => {
         // Let it be tried again rather than counting a failure as done - but not at
         // once. timeupdate comes four times a second, and with the network gone that
         // turned one dead track into ten failed requests in two seconds, which the log
         // caught happening. A failure means the line is down; the line will not be back
         // within a quarter of a second.
-        logPlayback("warm:error", { depth: depth });
-        setTimeout(() => warmedUrls.delete(track.stream_url), WARM_RETRY_AFTER_MS);
+        warmFailures++;
+        const wait = Math.min(WARM_RETRY_BASE_MS * warmFailures, WARM_RETRY_MAX_MS);
+        logPlayback("warm:error", { depth: depth, wait: Math.round(wait / 1000) });
+        setTimeout(() => warmedUrls.delete(track.stream_url), wait);
       });
     // One per pass; timeupdate comes round again in a quarter of a second and takes the
     // next one, which keeps two downloads from starting in the same breath.
@@ -1508,8 +1527,12 @@ function armHandoff() {
       logPlayback("handoff:armed");
     })
     .catch(() => {
-      handedOverFrom = "";
-      logPlayback("handoff:refused");
+      // Not a policy refusal, usually: the next track is simply not on the phone,
+      // because the fetch for it failed while the line was down - and asking the
+      // element to play a file that is not there fails the same way every time. The
+      // log caught twenty of these in five seconds. One attempt per track, then; the
+      // ordinary path at `ended` is still there to carry on with.
+      logPlayback("handoff:nothing-to-play");
     });
 }
 
