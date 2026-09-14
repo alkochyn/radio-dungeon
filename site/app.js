@@ -50,8 +50,6 @@ try {
     gapless = asked.get("gapless") !== "0";
     localStorage.setItem(GAPLESS_KEY, gapless ? "1" : "0");
   } else {
-    // On unless it has been turned off: twenty-four minutes and five handovers with the
-    // screen dark, against seven minutes and a stop before this existed.
     gapless = localStorage.getItem(GAPLESS_KEY) !== "0";
   }
 } catch (e) {
@@ -863,13 +861,7 @@ function pickNext(after) {
 // network is taken away for the next ten minutes - the log showed the fetch at the seam
 // failing outright (NETWORK_NO_SOURCE) while the track already in the cache started
 // instantly. Depth is the only thing that buys time against a line that is simply gone.
-// Two was the number for covering a seam. The log showed a run where the network died
-// three minutes into the dark and never came back: every fetch after that failed, and
-// when the one cached track ran out there was nothing to hand over to. So the queue is
-// no longer about the seam - it is about how long the phone can play with no line at
-// all. Five tracks is something like twenty minutes of it, and they are fetched while
-// the screen is still on and the network still answers.
-const PLAN_AHEAD = 5;
+const PLAN_AHEAD = 2;
 let plannedQueue = [];
 
 function planNextTracks() {
@@ -1376,13 +1368,6 @@ const WARM_AHEAD_S = 35;
 // player finds it there. Measured: fetched, then eight seconds later the element started
 // that track in 29ms with 191 of its 194 seconds already in hand.
 const warmedUrls = new Set();
-// Fifteen seconds was right for a hiccup and wrong for what actually happens: the log
-// shows a line that went away for four minutes, asked sixteen times, refused sixteen
-// times. Each failure pushes the next attempt further out, up to two minutes, and a
-// success puts it back to the start.
-const WARM_RETRY_BASE_MS = 15000;
-const WARM_RETRY_MAX_MS = 120000;
-let warmFailures = 0;
 
 function warmNextTrack() {
   if (!current || !isFinite(audio.duration) || audio.duration <= 0) return;
@@ -1410,26 +1395,17 @@ function warmNextTrack() {
     if (!track || !track.stream_url || warmedUrls.has(track.stream_url)) continue;
     warmedUrls.add(track.stream_url);
     // Only ever a couple of tracks deep, so the set cannot grow into a leak.
-    if (warmedUrls.size > PLAN_AHEAD * 3) {
-      warmedUrls.delete(warmedUrls.values().next().value);
-    }
+    if (warmedUrls.size > 6) warmedUrls.delete(warmedUrls.values().next().value);
     const depth = plannedQueue.indexOf(ref) + 1;
     logPlayback("warm:next", { depth: depth });
     fetch(track.stream_url, { mode: "no-cors" })
-      .then(() => {
-        warmFailures = 0;
-        logPlayback("warm:done", { depth: depth });
-      })
+      .then(() => logPlayback("warm:done", { depth: depth }))
       .catch(() => {
         // Let it be tried again rather than counting a failure as done - but not at
-        // once. timeupdate comes four times a second, and with the network gone that
-        // turned one dead track into ten failed requests in two seconds, which the log
-        // caught happening. A failure means the line is down; the line will not be back
-        // within a quarter of a second.
-        warmFailures++;
-        const wait = Math.min(WARM_RETRY_BASE_MS * warmFailures, WARM_RETRY_MAX_MS);
-        logPlayback("warm:error", { depth: depth, wait: Math.round(wait / 1000) });
-        setTimeout(() => warmedUrls.delete(track.stream_url), wait);
+        // once: timeupdate comes four times a second, and with the line down that turns
+        // one dead track into a drumbeat of dead requests.
+        logPlayback("warm:error", { depth: depth });
+        setTimeout(() => warmedUrls.delete(track.stream_url), 15000);
       });
     // One per pass; timeupdate comes round again in a quarter of a second and takes the
     // next one, which keeps two downloads from starting in the same breath.
@@ -1444,50 +1420,12 @@ onAudio("timeupdate", warmNextTrack);
 // two, short enough to fall inside the quiet tail almost every track ends with. The next
 // track has been fetched whole by now, so it starts instantly - which is the difference
 // between an overlap and a stutter.
-// The first version did all of this eight tenths of a second before the end, and the log
-// showed why that is not enough: three minutes into deep sleep the page was throttled so
-// hard that no timeupdate arrived inside that window at all, the handover never happened
-// and the music stopped there.
-//
-// So it is split in two, and the risky half is moved to where the page is still awake.
-// Five seconds out, while the current track is still making sound and the page is still
-// in its own right, the next one is started - silently, at zero volume. Starting playback
-// is the part a phone can refuse; it is done early, with seconds of slack.
-//
-// At the seam only the volume moves, and a volume change cannot be refused. It is
-// triggered by whichever comes first: the last tick before the end, or the outgoing
-// element's own `ended`. That second trigger is the point - `ended` fires even on a page
-// too throttled to get a timeupdate.
-// How long before the end the next track is started, silently. Five seconds buys slack
-// against a throttled page that may not be given a tick inside a narrow window - but a
-// second element rolling quietly alongside the first for that long is also the thing the
-// phone might object to, and the twenty-four minute run happened at 0.8 with no quiet
-// roll at all. So it is adjustable from the address bar while the two are compared:
-// ?arm=0.8 is the older behaviour, ?arm=5 the newer, and the choice sticks the way the
-// gapless flag does.
-const ARM_KEY = "rd_player_arm_v1";
-let ARM_AHEAD_S = 5;
-try {
-  const asked = new URLSearchParams(location.search).get("arm");
-  if (asked !== null && isFinite(Number(asked))) {
-    ARM_AHEAD_S = Math.min(30, Math.max(0.3, Number(asked)));
-    localStorage.setItem(ARM_KEY, String(ARM_AHEAD_S));
-  } else {
-    const kept = Number(localStorage.getItem(ARM_KEY));
-    if (isFinite(kept) && kept > 0) ARM_AHEAD_S = kept;
-  }
-} catch (e) {
-  // storage blocked: the default stands
-}
-const HANDOVER_AHEAD_S = 0.6;
-// The source whose handover has been arranged, so it is only arranged once.
+const OVERLAP_S = 0.8;
+// The source whose handover has already been started, so it is only tried once.
 let handedOverFrom = "";
-// { incoming, outgoing, ref, track } once the next track is playing silently.
-let armed = null;
 
 function cancelHandoff() {
   handedOverFrom = "";
-  armed = null;
   const idle = idlePlayer();
   if (idle.currentSrc || !idle.paused) {
     idle.pause();
@@ -1496,10 +1434,10 @@ function cancelHandoff() {
   }
 }
 
-function armHandoff() {
-  if (!gapless || armed || !wantsToPlay || audio.paused) return;
+function startHandoff() {
+  if (!gapless || !wantsToPlay || audio.paused) return;
   if (!isFinite(audio.duration) || audio.duration <= 0) return;
-  if (audio.currentTime < audio.duration - ARM_AHEAD_S) return;
+  if (audio.currentTime < audio.duration - OVERLAP_S) return;
   if (handedOverFrom === audio.currentSrc) return;
   // Walking back through history is not a handover; it is a choice, and rare.
   if (historyPos < history.length - 1) return;
@@ -1510,71 +1448,36 @@ function armHandoff() {
   if (!track || !track.stream_url) return;
 
   handedOverFrom = audio.currentSrc;
-  const outgoing = audio;
   const incoming = idlePlayer();
   incoming.src = track.stream_url;
-  incoming.volume = 0;
-  incoming.muted = outgoing.muted;
-  logPlayback("handoff:arm", { lead: ARM_AHEAD_S });
+  incoming.volume = audio.volume;
+  incoming.muted = audio.muted;
+  logPlayback("handoff:start");
 
   const started = incoming.play();
   if (!started || !started.then) return;
   started
     .then(() => {
-      armed = { incoming: incoming, outgoing: outgoing, ref: ref, track: track };
-      // The safety net for a page too asleep to be given a timeupdate.
-      outgoing.addEventListener("ended", handOver, { once: true });
-      logPlayback("handoff:armed");
+      // Only once it is actually making sound. If it was refused, nothing has changed
+      // and the old element reaching `ended` does the ordinary thing.
+      plannedQueue.shift();
+      history = history.slice(0, historyPos + 1);
+      history.push(ref);
+      historyPos = history.length - 1;
+      current = ref;
+      audio = incoming;
+      resetStallWatch();
+      logPlayback("handoff:done");
+      updateNowPlaying(track);
+      highlightCurrentTrack();
     })
     .catch(() => {
-      // Not a policy refusal, usually: the next track is simply not on the phone,
-      // because the fetch for it failed while the line was down - and asking the
-      // element to play a file that is not there fails the same way every time. The
-      // log caught twenty of these in five seconds. One attempt per track, then; the
-      // ordinary path at `ended` is still there to carry on with.
-      logPlayback("handoff:nothing-to-play");
+      handedOverFrom = "";
+      logPlayback("handoff:refused");
     });
 }
 
-function handOver() {
-  if (!armed) return;
-  const { incoming, outgoing, ref, track } = armed;
-  if (outgoing !== audio) return;
-  armed = null;
-
-  // It has been playing silently for a few seconds, so it is a few seconds in.
-  try {
-    incoming.currentTime = 0;
-  } catch (e) {
-    // not seekable for some reason: a few seconds lost beats silence
-  }
-  incoming.volume = outgoing.volume;
-  incoming.muted = outgoing.muted;
-
-  plannedQueue.shift();
-  history = history.slice(0, historyPos + 1);
-  history.push(ref);
-  historyPos = history.length - 1;
-  current = ref;
-  audio = incoming;
-  resetStallWatch();
-  logPlayback("handoff:done");
-  updateNowPlaying(track);
-  highlightCurrentTrack();
-}
-
-function handOverIfDue() {
-  if (!armed) return;
-  if (!isFinite(audio.duration) || audio.duration <= 0) return;
-  // On a short lead the arm itself lands inside the handover window, so the two would
-  // fire in the same tick; the mark is whichever is nearer the end.
-  const mark = Math.min(HANDOVER_AHEAD_S, ARM_AHEAD_S / 2);
-  if (audio.currentTime < audio.duration - mark) return;
-  handOver();
-}
-
-onAudio("timeupdate", armHandoff);
-onAudio("timeupdate", handOverIfDue);
+onAudio("timeupdate", startHandoff);
 
 
 // --- keeping the sound alive with the screen off ------------------------------------
@@ -1610,9 +1513,8 @@ function startPlayback() {
 
 function stopPlayback() {
   wantsToPlay = false;
-  // Both: during a handover the other one is already playing, silently, underneath.
+  // Both: during a handover the other one is a second into the next track.
   players.forEach((el) => el.pause());
-  cancelHandoff();
 }
 
 // The lock screen is where a phone plays music from. Without this the controls there
