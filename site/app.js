@@ -230,7 +230,17 @@ onAudio("pause", saveResumePoint);
 // The last chance a page gets on a phone: `unload` is not delivered there.
 window.addEventListener("pagehide", saveResumePoint);
 
-function restoreResumePoint() {
+// Remembered, not restored. Putting the player back on the saved track the moment the
+// page opens takes away the thing an empty player is for: the mascot, and whatever it
+// has to say today. That greeting is the first thing anybody sees, and a returning
+// listener was losing it every time.
+//
+// So the place is kept in hand and spent on the first press instead. The player opens
+// empty, as it always did; play carries on from where the music stopped rather than
+// rolling a stranger. Same single press either way - it just lands somewhere better.
+let pendingResume = null;
+
+function takeUpResumePoint() {
   let saved = null;
   try {
     saved = JSON.parse(localStorage.getItem(RESUME_KEY) || "null");
@@ -238,11 +248,20 @@ function restoreResumePoint() {
     saved = null;
   }
   if (!saved || !saved.trackId) return;
-  const track = findTrack(saved.trackId);
   // The catalogue is rebuilt every two hours and a post can leave it; and the url in it
   // is today's, not the one that was saved - which is the point of looking the track up
   // rather than keeping its address.
+  const track = findTrack(saved.trackId);
   if (!track || !track.stream_url) return;
+  pendingResume = saved;
+}
+
+function playPendingResume() {
+  const saved = pendingResume;
+  pendingResume = null;
+  if (!saved) return false;
+  const track = findTrack(saved.trackId);
+  if (!track || !track.stream_url) return false;
 
   current = { messageId: saved.messageId, trackId: saved.trackId };
   history = [current];
@@ -259,10 +278,12 @@ function restoreResumePoint() {
     audio.addEventListener("loadedmetadata", seek);
   }
   audio.src = track.stream_url;
+  paintSeek(0);
+  startPlayback();
   updateNowPlaying(track);
   highlightCurrentTrack();
-  // `at` is the clock in every other line; the position goes under its own name.
-  logPlayback("resume:restored", { pos: at });
+  logPlayback("resume:taken", { pos: at });
+  return true;
 }
 
 const LIKED_KEY = "rd_player_liked_v1";
@@ -986,7 +1007,13 @@ function syncPlayButton() {
 
 playBtn?.addEventListener("click", () => {
   if (!audio.src) {
-    // Nothing chosen yet - treat the play button as "start something".
+    // Nothing chosen yet. If the last visit left off somewhere, carry on from there;
+    // otherwise the play button means "start something".
+    if (playPendingResume()) {
+      tally("btn/play");
+      return;
+    }
+    // Falling through to the disco, which counts the press as its own.
     radioBtn?.click();
     return;
   }
@@ -2352,8 +2379,8 @@ async function refreshDataAndRetry(ref) {
 
   try {
     // After the list, because the track has to be found in it first - and last, because
-    // a player that cannot be put back is no reason for the page not to open.
-    restoreResumePoint();
+    // a place that cannot be found again is no reason for the page not to open.
+    takeUpResumePoint();
   } catch (e) {
     console.error(e);
   }
