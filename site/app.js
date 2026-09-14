@@ -1067,7 +1067,22 @@ let warmedUrl = "";
 function warmNextTrack() {
   if (!current || !isFinite(audio.duration) || audio.duration <= 0) return;
   const left = audio.duration - audio.currentTime;
-  if (left < 0 || left > WARM_AHEAD_S) return;
+  if (left < 0) return;
+  // Thirty-five seconds before the end is late for a phone: by then the screen has been
+  // dark for minutes and android has put the network to sleep for anything running in
+  // the background, so the fetch meant to protect the seam runs into the same wall the
+  // seam did. The moment the current track is wholly in hand, there is nothing left to
+  // compete with and no reason to wait, so the next one is fetched right then - minutes
+  // earlier, while the page is still allowed out. The old deadline stays as the fallback
+  // for a connection slow enough that the current track never gets that far ahead.
+  // "In hand" is not "downloaded whole": chrome buffers a long way ahead and then stops,
+  // so a five minute track may never be complete while it plays. A minute of sound
+  // already on the phone is enough to say the current track is not competing for the
+  // line any more.
+  const buffered = audio.buffered.length ? audio.buffered.end(audio.buffered.length - 1) : 0;
+  const currentTrackIsInHand =
+    buffered >= audio.duration - 2 || buffered - audio.currentTime >= 60;
+  if (!currentTrackIsInHand && left > WARM_AHEAD_S) return;
   // A listener who asked the phone to spend less data did not ask for this.
   if (navigator.connection && navigator.connection.saveData) return;
   const ref = planNextTrack();
