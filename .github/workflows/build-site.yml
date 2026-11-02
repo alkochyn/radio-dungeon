@@ -85,9 +85,15 @@ jobs:
       # The number tracks the schedule: ~1000 albums that each have to be re-minted
       # once a day, divided by 12 runs, is ~85 - 120 leaves room for a skipped run
       # without making every run walk a slice it has no reason to touch.
+      #
+      # GitHub's cron fires every 4-10h rather than every 2h, so an outside pinger may
+      # also ask for a run through workflow_dispatch, and those runs carry the budget
+      # too. The two do not double up: a run that finds a bake younger than 90 minutes
+      # refreshes only what is due (FRESH_BAKE in tools/build_site_data.py). Nothing here
+      # depends on the pinger - without it the cron runs exactly as before.
       - name: Bake stream urls
         env:
-          BC_REFRESH_BUDGET: ${{ github.event_name == 'schedule' && '120' || '0' }}
+          BC_REFRESH_BUDGET: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '120' || '0' }}
         run: python tools/build_site_data.py --tracks catalog/tracks.json
 
       # Saved the moment the bake is done, not at the end of the job. actions/cache

@@ -54,6 +54,13 @@ DUE_MARGIN = float(os.environ.get("BC_DUE_MARGIN_HOURS", "4")) * 3600
 # needs them yet - the point is where their new expiry lands. See the planning pass in
 # main() for why a run that has nothing due should still do work.
 REFRESH_BUDGET = int(os.environ.get("BC_REFRESH_BUDGET", "120"))
+# Runs can come from two places: GitHub's own cron and an outside pinger that asks for a
+# run through workflow_dispatch (GitHub's cron fires every 4-10h instead of every 2h, so
+# a steady pinger is what keeps the planner's 2h assumption true). Whichever comes first
+# does the work; a run that finds the previous bake younger than this only refreshes
+# what is due and leaves the early budget for later, so two triggers close together do
+# not re-mint twice the albums. With the pinger gone the cron runs exactly as before.
+FRESH_BAKE = float(os.environ.get("BC_FRESH_BAKE_MINUTES", "90")) * 60
 TIMEOUT = 25
 USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -88,7 +95,14 @@ def group_posts(tracks: list[dict]) -> list[dict]:
     return [posts[k] for k in order]
 
 
-def plan_refresh(soonest_of: dict[str, float], now: float) -> tuple[set[str], int]:
+def early_budget(previous_generated_at: float | None, now: float) -> int:
+    """How many albums this run may re-mint ahead of time. See FRESH_BAKE."""
+    if previous_generated_at and now - previous_generated_at < FRESH_BAKE:
+        return 0
+    return REFRESH_BUDGET
+
+
+def plan_refresh(soonest_of: dict[str, float], now: float, budget: int | None = None) -> tuple[set[str], int]:
     """Pick the posts this run refreshes. Returns the set and how many were overdue.
 
     Bandcamp links live 24 hours and the whole catalogue was minted in one sitting, so
@@ -105,12 +119,14 @@ def plan_refresh(soonest_of: dict[str, float], now: float) -> tuple[set[str], in
     Steady state is the catalogue divided by the runs inside one link lifetime, which
     for ~1000 albums on a 2h schedule is ~85 albums a run, a minute or two of requests.
     """
+    if budget is None:
+        budget = REFRESH_BUDGET
     by_urgency = sorted(soonest_of, key=lambda k: soonest_of[k])
     deadline = now + DUE_MARGIN
     refresh = {k for k in by_urgency if soonest_of[k] <= deadline}
     due_count = len(refresh)
     for key in by_urgency:
-        if len(refresh) >= REFRESH_BUDGET:
+        if len(refresh) >= budget:
             break
         refresh.add(key)
     return refresh, due_count
@@ -178,7 +194,11 @@ def main() -> int:
                 soonest = expiry
         soonest_of[str(post["message_id"])] = soonest if soonest is not None else 0.0
 
-    refresh, due_count = plan_refresh(soonest_of, now)
+    budget = early_budget(previous.get("generated_at"), now)
+    if budget < REFRESH_BUDGET:
+        age = (now - previous["generated_at"]) / 60
+        print(f"прошлая выпечка {age:.0f} мин назад - заранее не обновляю, только протухающее")
+    refresh, due_count = plan_refresh(soonest_of, now, budget)
     deadline = now + DUE_MARGIN
     print(
         f"обновляю: {due_count} протухающих + {len(refresh) - due_count} заранее, "

@@ -96,6 +96,19 @@ check("без бюджета и без срочного запросов нет"
 build.REFRESH_BUDGET = saved_budget
 
 
+# Two triggers - GitHub's cron and an outside pinger - can land minutes apart. The second
+# finds a fresh bake and must not spend the early budget again; an old bake, or none at
+# all, gets the full budget, so with the pinger gone the cron works exactly as before.
+check("свежая выпечка: заранее не обновляем",
+      build.early_budget(now - 30 * 60, now) == 0)
+check("выпечке больше полутора часов: полный запас",
+      build.early_budget(now - 2 * HOUR, now) == build.REFRESH_BUDGET)
+check("прошлой выпечки нет: полный запас",
+      build.early_budget(None, now) == build.REFRESH_BUDGET)
+refresh, due = build.plan_refresh({"dying": now - HOUR, "fine": now + TTL - HOUR}, now, budget=0)
+check("и без запаса протухающее обновляется", refresh == {"dying"} and due == 1)
+
+
 # --- the planner and the bake loop together ----------------------------------------
 # The planner splits the catalogue into "fetch this" and "keep what you have", and the
 # loop walks both in one pass. Checked apart they each looked right, while the loop
