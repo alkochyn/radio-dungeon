@@ -38,6 +38,13 @@ TRACKS_FILE = CATALOG_DIR / "tracks.json"
 ALBUM_CACHE = CATALOG_DIR / "albums.json"
 OUT_DIR = ROOT / "site" / "data"
 OUT_FILE = OUT_DIR / "posts.json"
+# Links die within a day and an album whose links could not be refreshed drops out of
+# posts.json. What the albums are does not expire, so it is kept here, committed, and
+# published next to posts.json: a consumer that gets its links elsewhere keeps its catalogue
+# through a bandcamp block. The names are relative so the checks can bake into a temp dir.
+BAKED_NAME = "baked.json"
+PUBLISHED_CATALOG = "catalog.json"
+BAKED_FIELDS = ("id", "title", "artist", "thumbnail", "webpage_url", "album", "album_url", "duration")
 
 CHANNEL = "radio_dungeon"
 # Bumped whenever a field is added to the baked records. Without it a run would happily
@@ -142,6 +149,20 @@ def alive_records(tracks: list[dict], previous_tracks: dict[str, dict], now: flo
     """What the previous run baked for these tracks and can still play right now."""
     records = (previous_tracks.get(t["id"]) for t in tracks)
     return [r for r in records if r and (bandcamp.stream_expiry(r["stream_url"]) or 0) > now]
+
+
+def update_baked(baked: dict, posts: list[dict], out_posts: list[dict]) -> dict:
+    """Everything ever baked, minus the links, in channel order. Never forgets a track."""
+    known = {t["id"]: t for post in baked.get("posts", []) for t in post.get("tracks", [])}
+    for post in out_posts:
+        for t in post["tracks"]:
+            known[t["id"]] = {field: t.get(field) for field in BAKED_FIELDS}
+    out = []
+    for post in posts:
+        tracks = [known[t["id"]] for t in post["tracks"] if t["id"] in known]
+        if tracks:
+            out.append({"message_id": post["message_id"], "message_date": post["message_date"], "tracks": tracks})
+    return {"version": 1, "channel": CHANNEL, "posts": out}
 
 
 def main() -> int:
@@ -359,6 +380,14 @@ def main() -> int:
     CATALOG_DIR.mkdir(parents=True, exist_ok=True)
     with open(ALBUM_CACHE, "w", encoding="utf-8") as f:
         json.dump(album_cache, f, ensure_ascii=False, indent=2)
+
+    # A --limit run has seen a slice of the channel and must not rewrite the whole list.
+    if not args.limit:
+        baked = update_baked(load_json(CATALOG_DIR / BAKED_NAME, {}), posts, out_posts)
+        with open(CATALOG_DIR / BAKED_NAME, "w", encoding="utf-8") as f:
+            json.dump(baked, f, ensure_ascii=False, indent=1)
+        with open(OUT_DIR / PUBLISHED_CATALOG, "w", encoding="utf-8") as f:
+            json.dump(baked, f, ensure_ascii=False, separators=(",", ":"))
 
     size_mb = OUT_FILE.stat().st_size / 1024 / 1024
     print()

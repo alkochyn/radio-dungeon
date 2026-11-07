@@ -117,7 +117,8 @@ jobs:
           key: baked-links-${{ github.run_id }}
 
       # posts.json is rewritten every run and would bloat history fast, so it ships to
-      # Pages as an artifact instead. Only the catalogue and the album cache are kept.
+      # Pages as an artifact instead. Only the catalogue, the album cache and baked.json,
+      # the link-free list of everything ever baked, are kept.
       - name: Commit catalogue changes
         run: |
           git config user.name "github-actions[bot]"

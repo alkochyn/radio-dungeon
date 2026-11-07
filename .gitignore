@@ -5,3 +5,4 @@ __pycache__/
 *.pyc
 .venv/
 site/data/posts.json
+site/data/catalog.json

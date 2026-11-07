@@ -81,9 +81,11 @@ def mid_of(url):
     return int(url.split("band")[1].split(".")[0])
 
 
-def bake(directory, tracks, previous, albums, answer):
+def bake(directory, tracks, previous, albums, answer, baked=None):
     """Run the bake once. Returns (posts by message id, requested urls, album cache, outputs)."""
     directory = Path(directory)
+    if baked is not None:
+        (directory / build.BAKED_NAME).write_text(json.dumps(baked), encoding="utf-8")
     (directory / "tracks.json").write_text(json.dumps(tracks), encoding="utf-8")
     (directory / "albums.json").write_text(json.dumps(albums), encoding="utf-8")
     build.OUT_DIR = directory
@@ -137,6 +139,32 @@ with tempfile.TemporaryDirectory() as tmp:
     check("живые ссылки остаются", all(m in kept for m in range(1, count + 1, 2)), f"осталось {len(kept)}")
     check("мёртвые выпадают", all(m not in kept for m in range(2, count + 1, 2)))
     check("запуск докладывает о беде", values.get("unhealthy") == "true", str(values))
+
+print("каталог без ссылок")
+with tempfile.TemporaryDirectory() as tmp:
+    # Every link is dead and bandcamp refuses: posts.json empties, the catalogue must not.
+    remembered = [
+        {
+            "message_id": m,
+            "message_date": "2026-01-01T00:00:00+00:00",
+            "tracks": [{k: v for k, v in baked_track(m, now).items() if k in build.BAKED_FIELDS}],
+        }
+        for m in range(1, count + 1)
+    ]
+    dead = [post_of(baked_track(m, now - HOUR)) for m in range(1, count + 1)]
+    kept, _, _, _ = bake(tmp, tracks, dead, albums, lambda url: BOT_PAGE, {"posts": remembered})
+    published = json.loads((Path(tmp) / build.PUBLISHED_CATALOG).read_text(encoding="utf-8"))
+    published_tracks = [t for p in published["posts"] for t in p["tracks"]]
+    check("в posts.json пусто", not kept)
+    check("в каталоге всё на месте", len(published_tracks) == count, f"{len(published_tracks)} из {count}")
+    check("ссылок в каталоге нет", all("stream_url" not in t for t in published_tracks))
+    check("длительность осталась", all(t["duration"] == 60 for t in published_tracks))
+
+with tempfile.TemporaryDirectory() as tmp:
+    # A freshly baked album joins the catalogue with the fields a consumer needs.
+    bake(tmp, [channel_track(1)], [], {"1": album_url(1)}, lambda url: real_page(1, now + 24 * HOUR))
+    published = json.loads((Path(tmp) / build.PUBLISHED_CATALOG).read_text(encoding="utf-8"))
+    check("новый альбом попал в каталог", published["posts"][0]["tracks"][0]["webpage_url"] == page_url(1))
 
 print("новый пост, пока bandcamp не отдаёт страницы")
 with tempfile.TemporaryDirectory() as tmp:

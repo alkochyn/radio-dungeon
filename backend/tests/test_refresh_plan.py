@@ -183,12 +183,14 @@ with tempfile.TemporaryDirectory() as tmpname:
                 album_url=ALBUM_A, album_title="A") for tid in ("a1", "a2")],
         )
 
-    saved = (build.OUT_FILE, build.OUT_DIR, build.ALBUM_CACHE, build.ROOT,
+    saved = (build.CATALOG_DIR, build.OUT_FILE, build.OUT_DIR, build.ALBUM_CACHE, build.ROOT,
              build.REQUEST_DELAY, build.REFRESH_BUDGET,
              bandcamp.fetch_page, bandcamp.parse_page)
     build.OUT_FILE = tmp / "posts.json"
     build.OUT_DIR = tmp
     build.ALBUM_CACHE = tmp / "albums.json"
+    # Otherwise this check writes the real catalog/baked.json, and CI commits the result.
+    build.CATALOG_DIR = tmp
     build.ROOT = tmp
     build.REQUEST_DELAY = 0.0
     build.REFRESH_BUDGET = 1  # only the neediest, so post 2 must take the reuse path
@@ -202,7 +204,7 @@ with tempfile.TemporaryDirectory() as tmpname:
     except Exception as exc:  # noqa: BLE001 - reporting it is the whole point
         crash = f"{type(exc).__name__}: {exc}"
     finally:
-        (build.OUT_FILE, build.OUT_DIR, build.ALBUM_CACHE, build.ROOT,
+        (build.CATALOG_DIR, build.OUT_FILE, build.OUT_DIR, build.ALBUM_CACHE, build.ROOT,
          build.REQUEST_DELAY, build.REFRESH_BUDGET,
          bandcamp.fetch_page, bandcamp.parse_page) = saved
 
