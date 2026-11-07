@@ -81,7 +81,7 @@ def mid_of(url):
     return int(url.split("band")[1].split(".")[0])
 
 
-def bake(directory, tracks, previous, albums, answer, baked=None):
+def bake(directory, tracks, previous, albums, answer, baked=None, state=None):
     """Run the bake once. Returns (posts by message id, requested urls, album cache, outputs)."""
     directory = Path(directory)
     if baked is not None:
@@ -95,7 +95,7 @@ def bake(directory, tracks, previous, albums, answer, baked=None):
     build.ROOT = directory
     build.REQUEST_DELAY = 0
     build.OUT_FILE.write_text(
-        json.dumps({"version": build.DATA_VERSION, "generated_at": time.time() - 2 * HOUR, "posts": previous}),
+        json.dumps({"version": build.DATA_VERSION, "generated_at": time.time() - 2 * HOUR, "posts": previous, **(state or {})}),
         encoding="utf-8",
     )
     requested = []
@@ -139,6 +139,47 @@ with tempfile.TemporaryDirectory() as tmp:
     check("живые ссылки остаются", all(m in kept for m in range(1, count + 1, 2)), f"осталось {len(kept)}")
     check("мёртвые выпадают", all(m not in kept for m in range(2, count + 1, 2)))
     check("запуск докладывает о беде", values.get("unhealthy") == "true", str(values))
+
+def written(directory):
+    return json.loads((Path(directory) / "posts.json").read_text(encoding="utf-8"))
+
+
+print("после отказа bandcamp - пауза")
+with tempfile.TemporaryDirectory() as tmp:
+    dead = [post_of(baked_track(m, now - HOUR)) for m in range(1, count + 1)]
+    bake(tmp, tracks, dead, albums, lambda url: BOT_PAGE)
+    after = written(tmp)
+    check("отказ запомнен", bool(after.get("refused_at")) and after.get("recovering") is True, str({k: after.get(k) for k in ("refused_at", "recovering")}))
+
+    state = {"refused_at": after["refused_at"], "recovering": True}
+    _, requested, _, values = bake(tmp, tracks, dead, albums, lambda url: BOT_PAGE, state=state)
+    check("через два часа bandcamp не спрашивает вовсе", requested == [], f"{len(requested)} запросов")
+    check("время отказа не сдвинулось", written(tmp).get("refused_at") == after["refused_at"])
+    check("запуск всё ещё помечен", values.get("unhealthy") == "true")
+
+    state = {"refused_at": now - 13 * HOUR, "recovering": True}
+    _, requested, _, _ = bake(tmp, tracks, dead, albums, lambda url: BOT_PAGE, state=state)
+    check("через 12 часов пробует снова, и снова не больше порога", len(requested) == build.BLOCK_AFTER, f"{len(requested)}")
+
+print("bandcamp снова отвечает - восстановление порциями")
+with tempfile.TemporaryDirectory() as tmp:
+    saved_cap = build.RECOVERY_CAP
+    build.RECOVERY_CAP = 10
+    try:
+        dead = [post_of(baked_track(m, now - HOUR)) for m in range(1, count + 1)]
+        state = {"refused_at": now - 13 * HOUR, "recovering": True}
+        answer = lambda url: real_page(mid_of(url), now + 24 * HOUR)  # noqa: E731
+        kept, requested, _, _ = bake(tmp, tracks, dead, albums, answer, state=state)
+        check("за запуск не больше порции", len(requested) == 10, f"{len(requested)}")
+        check("начинает с самых свежих", sorted(kept) == list(range(count - 9, count + 1)), str(sorted(kept)))
+        check("пока хвост не разобран, восстановление продолжается", written(tmp).get("recovering") is True)
+
+        # Хвост разобран - дальше обычный режим.
+        fresh = [post_of(baked_track(m, now + 20 * HOUR)) for m in range(1, count + 1)]
+        bake(tmp, tracks, fresh, albums, answer, state={"refused_at": None, "recovering": True})
+        check("хвоста нет - восстановление кончилось", written(tmp).get("recovering") is False)
+    finally:
+        build.RECOVERY_CAP = saved_cap
 
 print("каталог без ссылок")
 with tempfile.TemporaryDirectory() as tmp:

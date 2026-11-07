@@ -74,6 +74,14 @@ FRESH_BAKE = float(os.environ.get("BC_FRESH_BAKE_MINUTES", "90")) * 60
 # two hours is a good way to keep a block in place. Also the number of failed albums at
 # which a run reports itself as unhealthy.
 BLOCK_AFTER = int(os.environ.get("BC_BLOCK_AFTER", "10"))
+# After a run that hit that wall, the next ones do not ask bandcamp at all for this long:
+# a block lasts days, and knocking every two hours only gives it more to count. The runs
+# themselves keep going - the channel sync and the publishing do not depend on bandcamp.
+BLOCK_BACKOFF = float(os.environ.get("BC_BLOCK_BACKOFF_HOURS", "12")) * 3600
+# Once bandcamp answers again every album is overdue at once. A run asks for at most
+# this many, newest posts first, until the backlog is gone: a burst of a thousand pages
+# from the machine that was just let back in is the surest way to be shut out again.
+RECOVERY_CAP = int(os.environ.get("BC_RECOVERY_CAP", "150"))
 TIMEOUT = 25
 USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -233,6 +241,22 @@ def main() -> int:
         print(f"прошлая выпечка {age:.0f} мин назад - заранее не обновляю, только протухающее")
     refresh, due_count = plan_refresh(soonest_of, now, budget)
     deadline = now + DUE_MARGIN
+
+    # Posts the plan picked but this run leaves alone: they keep whatever still plays.
+    refused_at = previous.get("refused_at")
+    recovering = bool(previous.get("recovering"))
+    waiting = bool(refused_at) and now - refused_at < BLOCK_BACKOFF
+    deferred: set[str] = set()
+    if waiting:
+        deferred = set(refresh)
+        print(f"bandcamp отказал {(now - refused_at) / 3600:.1f} ч назад - не спрашиваю до {BLOCK_BACKOFF / 3600:.0f} ч")
+    elif recovering:
+        # Nothing early until the overdue are done: the early slice is for spreading
+        # expiry times, and a backlog has no business paying for it.
+        due = sorted((k for k in refresh if soonest_of[k] <= deadline), key=lambda k: int(k) if k.isdigit() else 0, reverse=True)
+        deferred = (refresh - set(due)) | set(due[RECOVERY_CAP:])
+        if len(due) > RECOVERY_CAP:
+            print(f"после блокировки: обновляю {RECOVERY_CAP} самых свежих, остальные {len(due) - RECOVERY_CAP} - в следующие запуски")
     print(
         f"обновляю: {due_count} протухающих + {len(refresh) - due_count} заранее, "
         f"переиспользую {len(soonest_of) - len(refresh)}"
@@ -304,7 +328,7 @@ def main() -> int:
                 stats["resolved"] += len(reusable)
                 out_posts.append({**post, "tracks": reusable})
                 continue
-            if failures_in_row >= BLOCK_AFTER:
+            if key in deferred or failures_in_row >= BLOCK_AFTER:
                 stats["not_asked"] += 1
                 keep_what_still_plays(post, bandcamp_tracks)
                 continue
@@ -367,6 +391,7 @@ def main() -> int:
             if fresh_records:
                 out_posts.append({**post, "tracks": fresh_records})
 
+    tripped = failures_in_row >= BLOCK_AFTER
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     payload = {
         "version": DATA_VERSION,
@@ -374,6 +399,9 @@ def main() -> int:
         "expires_at": soonest_expiry,
         "channel": CHANNEL,
         "posts": out_posts,
+        # When bandcamp last refused, and whether the backlog after that is not yet gone.
+        "refused_at": now if tripped else (refused_at if waiting else None),
+        "recovering": tripped or waiting or (recovering and any(soonest_of[k] <= deadline for k in deferred)),
     }
     with open(OUT_FILE, "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, separators=(",", ":"))
@@ -395,8 +423,10 @@ def main() -> int:
     print(f"  постов: {len(out_posts)}, треков: {stats['resolved']}")
     print(f"  пропущено треков: {stats['skipped']}, постов с ошибкой: {stats['posts_failed']}")
     print(f"  оставлено живых ссылок после ошибки: {stats['kept_alive']}")
-    if stats["not_asked"]:
+    if tripped:
         print(f"  {BLOCK_AFTER} ошибок подряд - bandcamp не отдаёт страницы, не спрашивал ещё {stats['not_asked']} постов")
+    elif stats["not_asked"]:
+        print(f"  не спрашивал, отложено: {stats['not_asked']} постов")
     print(f"  album-ссылок из кеша: {stats['cache_hits']}")
     print(f"  переиспользовано живых ссылок: {stats['reused']} (запросов не потребовалось)")
     print(f"  обновлено заранее, про запас: {stats['ahead']} альбомов")
@@ -406,7 +436,7 @@ def main() -> int:
 
     # The run still has to publish what it kept, so a bad bake cannot simply fail here:
     # the workflow flags the run with a warning after the deploy.
-    unhealthy = stats["posts_failed"] >= BLOCK_AFTER
+    unhealthy = stats["posts_failed"] >= BLOCK_AFTER or waiting
     if os.environ.get("GITHUB_OUTPUT"):
         with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
             f.write(f"unhealthy={'true' if unhealthy else 'false'}\n")
