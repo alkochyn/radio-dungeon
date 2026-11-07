@@ -61,6 +61,12 @@ REFRESH_BUDGET = int(os.environ.get("BC_REFRESH_BUDGET", "120"))
 # what is due and leaves the early budget for later, so two triggers close together do
 # not re-mint twice the albums. With the pinger gone the cron runs exactly as before.
 FRESH_BAKE = float(os.environ.get("BC_FRESH_BAKE_MINUTES", "90")) * 60
+# This many album pages in a row without album data means bandcamp is not serving this
+# machine real pages, not that this many albums vanished. The run stops asking: every
+# further request would only get the same answer, and a catalogue's worth of them every
+# two hours is a good way to keep a block in place. Also the number of failed albums at
+# which a run reports itself as unhealthy.
+BLOCK_AFTER = int(os.environ.get("BC_BLOCK_AFTER", "10"))
 TIMEOUT = 25
 USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -130,6 +136,12 @@ def plan_refresh(soonest_of: dict[str, float], now: float, budget: int | None = 
             break
         refresh.add(key)
     return refresh, due_count
+
+
+def alive_records(tracks: list[dict], previous_tracks: dict[str, dict], now: float) -> list[dict]:
+    """What the previous run baked for these tracks and can still play right now."""
+    records = (previous_tracks.get(t["id"]) for t in tracks)
+    return [r for r in records if r and (bandcamp.stream_expiry(r["stream_url"]) or 0) > now]
 
 
 def main() -> int:
@@ -213,8 +225,39 @@ def main() -> int:
         "cache_hits": 0,
         "reused": 0,
         "ahead": 0,
+        "kept_alive": 0,
+        "not_asked": 0,
     }
     soonest_expiry = None
+    failures_in_row = 0
+    response_logged = False
+
+    def note_expiry(stream_url: str) -> None:
+        nonlocal soonest_expiry
+        expiry = bandcamp.stream_expiry(stream_url)
+        if expiry and (soonest_expiry is None or expiry < soonest_expiry):
+            soonest_expiry = expiry
+
+    def keep_what_still_plays(post: dict, tracks: list[dict]) -> None:
+        # A failed refresh is no reason to throw away links that still work.
+        alive = alive_records(tracks, previous_tracks, now)
+        for t in alive:
+            note_expiry(t["stream_url"])
+        stats["kept_alive"] += len(alive)
+        stats["resolved"] += len(alive)
+        if alive:
+            out_posts.append({**post, "tracks": alive})
+
+    def album_failed(post: dict, tracks: list[dict], message: str, html: str | None = None) -> None:
+        nonlocal failures_in_row, response_logged
+        failures_in_row += 1
+        stats["posts_failed"] += 1
+        print(message)
+        # Once per run: without seeing the answer nobody can tell a block from a redesign.
+        if html is not None and not response_logged:
+            response_logged = True
+            print(f"    ответ, {len(html)} символов: {html.strip()[:300]!r}")
+        keep_what_still_plays(post, tracks)
 
     headers = {"User-Agent": USER_AGENT, "Accept-Language": "en,ru;q=0.9"}
     with httpx.Client(timeout=TIMEOUT, follow_redirects=True, headers=headers) as client:
@@ -235,12 +278,14 @@ def main() -> int:
             if key not in refresh:
                 reusable = [previous_tracks[t["id"]] for t in bandcamp_tracks]
                 for t in reusable:
-                    expiry = bandcamp.stream_expiry(t["stream_url"])
-                    if expiry and (soonest_expiry is None or expiry < soonest_expiry):
-                        soonest_expiry = expiry
+                    note_expiry(t["stream_url"])
                 stats["reused"] += len(reusable)
                 stats["resolved"] += len(reusable)
                 out_posts.append({**post, "tracks": reusable})
+                continue
+            if failures_in_row >= BLOCK_AFTER:
+                stats["not_asked"] += 1
+                keep_what_still_plays(post, bandcamp_tracks)
                 continue
             if soonest_of.get(key, 0.0) > deadline:
                 stats["ahead"] += 1
@@ -252,26 +297,28 @@ def main() -> int:
                 probe = bandcamp_tracks[0]["webpage_url"]
                 html = bandcamp.fetch_page(client, probe)
                 time.sleep(REQUEST_DELAY)
-                album_url = bandcamp.album_url_from_track_page(html, probe) if html else None
-                if not album_url:
-                    # A standalone single has no parent album - its own page is the source.
-                    album_url = probe
+                # Not a real page, so it says nothing about the album. Remembering the
+                # track as its own album would cost this post its other tracks for good.
+                if html is None or not bandcamp.has_album_data(html):
+                    album_failed(post, bandcamp_tracks, f"{label}: не похоже на bandcamp: {probe}", html)
+                    continue
+                # A standalone single has no parent album - its own page is the source.
+                album_url = bandcamp.album_url_from_track_page(html, probe) or probe
                 album_cache[key] = album_url
 
             html = bandcamp.fetch_page(client, album_url)
             time.sleep(REQUEST_DELAY)
             if html is None:
-                stats["posts_failed"] += 1
-                print(f"{label}: страница альбома недоступна")
+                album_failed(post, bandcamp_tracks, f"{label}: страница альбома недоступна")
                 continue
 
             try:
                 album = bandcamp.parse_page(html, album_url)
             except bandcamp.NotBandcamp:
-                stats["posts_failed"] += 1
-                print(f"{label}: не похоже на bandcamp: {album_url}")
+                album_failed(post, bandcamp_tracks, f"{label}: не похоже на bandcamp: {album_url}", html)
                 continue
 
+            failures_in_row = 0
             by_url = {t.webpage_url: t for t in album.tracks}
             fresh_records = []
             for original in bandcamp_tracks:
@@ -279,9 +326,7 @@ def main() -> int:
                 if fresh is None:
                     stats["skipped"] += 1
                     continue
-                expiry = bandcamp.stream_expiry(fresh.stream_url)
-                if expiry and (soonest_expiry is None or expiry < soonest_expiry):
-                    soonest_expiry = expiry
+                note_expiry(fresh.stream_url)
                 fresh_records.append(
                     {
                         "id": original["id"],
@@ -320,12 +365,24 @@ def main() -> int:
     print(f"записано: {OUT_FILE.relative_to(ROOT)}  ({size_mb:.2f} МБ)")
     print(f"  постов: {len(out_posts)}, треков: {stats['resolved']}")
     print(f"  пропущено треков: {stats['skipped']}, постов с ошибкой: {stats['posts_failed']}")
+    print(f"  оставлено живых ссылок после ошибки: {stats['kept_alive']}")
+    if stats["not_asked"]:
+        print(f"  {BLOCK_AFTER} ошибок подряд - bandcamp не отдаёт страницы, не спрашивал ещё {stats['not_asked']} постов")
     print(f"  album-ссылок из кеша: {stats['cache_hits']}")
     print(f"  переиспользовано живых ссылок: {stats['reused']} (запросов не потребовалось)")
     print(f"  обновлено заранее, про запас: {stats['ahead']} альбомов")
     if soonest_expiry:
         left = (soonest_expiry - time.time()) / 3600
         print(f"  самая ранняя ссылка протухнет через {left:.1f} ч")
+
+    # The run still has to publish what it kept, so a bad bake cannot simply fail here:
+    # the workflow turns this into a red run after the deploy.
+    unhealthy = stats["posts_failed"] >= BLOCK_AFTER
+    if os.environ.get("GITHUB_OUTPUT"):
+        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+            f.write(f"unhealthy={'true' if unhealthy else 'false'}\n")
+            f.write(f"failed={stats['posts_failed']}\n")
+            f.write(f"not_asked={stats['not_asked']}\n")
     return 0
 
 

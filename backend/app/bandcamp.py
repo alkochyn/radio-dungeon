@@ -102,6 +102,11 @@ def stream_expiry(stream_url: str) -> int | None:
     return int(m.group(1)) if m else None
 
 
+def has_album_data(html: str) -> bool:
+    """Whether this is a real album or track page, not something served in its place."""
+    return _TRALBUM_RE.search(html) is not None
+
+
 def parse_page(html: str, page_url: str) -> BcAlbum:
     """Read an album (or single-track) page into its streamable tracks."""
     m = _TRALBUM_RE.search(html)
