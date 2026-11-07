@@ -163,15 +163,14 @@ jobs:
       - id: deployment
         uses: actions/deploy-pages@v4
 
-  # A bake that lost albums still publishes what it kept, so it cannot fail where it
-  # happens: a red build job would skip the deploy and leave the site on older links.
-  # Red comes last instead, so nobody learns of it from a shrinking catalogue.
+  # A bake that lost albums is flagged with a warning on the run, not a red run: a block
+  # lasts days and fails every run, and each red run is an email. The site keeps working
+  # on what is still alive, so there is nothing to do about it run by run.
   report:
     needs: [build, deploy]
     if: needs.build.outputs.unhealthy == 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: Fail the run
+      - name: Flag the run
         run: |
-          echo "::error::Bandcamp did not serve ${{ needs.build.outputs.failed }} album pages, ${{ needs.build.outputs.not_asked }} more not requested. See the Bake stream urls log."
-          exit 1
+          echo "::warning::Bandcamp did not serve ${{ needs.build.outputs.failed }} album pages, ${{ needs.build.outputs.not_asked }} more not requested. See the Bake stream urls log."

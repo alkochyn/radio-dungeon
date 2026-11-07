@@ -405,7 +405,7 @@ def main() -> int:
         print(f"  самая ранняя ссылка протухнет через {left:.1f} ч")
 
     # The run still has to publish what it kept, so a bad bake cannot simply fail here:
-    # the workflow turns this into a red run after the deploy.
+    # the workflow flags the run with a warning after the deploy.
     unhealthy = stats["posts_failed"] >= BLOCK_AFTER
     if os.environ.get("GITHUB_OUTPUT"):
         with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
