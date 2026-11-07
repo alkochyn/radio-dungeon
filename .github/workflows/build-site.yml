@@ -64,6 +64,10 @@ jobs:
       - name: Check the bake when bandcamp refuses
         run: python backend/tests/test_bake_refused.py
 
+      # Guards the sync against losing a post whose album bandcamp would not show.
+      - name: Check the sync keeps refused posts
+        run: python backend/tests/test_sync_pending.py
+
       # The catalogue (which posts exist, which tracks are in them) is committed, so a
       # run only has to fetch what the channel added since last time.
       - name: Sync new posts from the channel

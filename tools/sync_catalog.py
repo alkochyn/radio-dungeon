@@ -25,6 +25,9 @@ from app import bandcamp, store, web_sync  # noqa: E402
 from app.config import CHANNEL  # noqa: E402
 
 REQUEST_DELAY = float(os.environ.get("BC_REQUEST_DELAY", "1.0"))
+# A link that would not expand is retried for this long, then given up: an album taken
+# down for good should not cost a request every two hours forever.
+PENDING_DAYS = float(os.environ.get("SYNC_PENDING_DAYS", "30"))
 TIMEOUT = 25
 USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -43,55 +46,78 @@ def expand(client: httpx.Client, link: str) -> list[bandcamp.BcTrack]:
         return []
 
 
+def new_entries(item: dict, tracks: list[bandcamp.BcTrack], known: set[str]) -> list[dict]:
+    entries = []
+    for t in tracks:
+        if t.webpage_url in known:
+            continue
+        known.add(t.webpage_url)
+        entries.append(
+            {
+                "id": store.track_id(t.webpage_url),
+                "webpage_url": t.webpage_url,
+                "title": t.title,
+                "artist": t.artist,
+                "thumbnail": t.thumbnail,
+                "message_id": item["id"],
+                "message_text": item["text"],
+                "message_date": item["date"],
+            }
+        )
+    return entries
+
+
 async def main() -> int:
     state = store.load_state()
     last_id = state.get("last_id", 0)
+    # Links that bandcamp would not expand last time. The cursor still moves past their
+    # posts - it has to, or one dead album would hold up the channel - so they wait here
+    # and are retried every run. Without this a post that arrived during a block was
+    # gone for good: the cursor moved on and nothing ever read it again.
+    pending: list[dict] = state.get("pending", [])
 
     posts = await web_sync.fetch_posts(CHANNEL, last_id)
-    print(f"новых постов: {len(posts)}")
-    if not posts:
+    print(f"новых постов: {len(posts)}, ждут повтора: {len(pending)}")
+    if not posts and not pending:
         return 0
 
+    now = time.time()
+    work = list(pending) + [
+        {"id": post.id, "date": post.date, "text": post.text, "link": link, "since": now}
+        for post in posts
+        for link in post.links
+        # Only bandcamp can be expanded (and later baked) without yt-dlp; other
+        # sources are left out of the web build rather than half-supported.
+        if "bandcamp.com" in link
+    ]
     known = store.known_urls()
     added_total = 0
+    still_pending = []
 
     headers = {"User-Agent": USER_AGENT, "Accept-Language": "en,ru;q=0.9"}
     with httpx.Client(timeout=TIMEOUT, follow_redirects=True, headers=headers) as client:
-        for i, post in enumerate(posts, 1):
-            for link in post.links:
-                # Only bandcamp can be expanded (and later baked) without yt-dlp; other
-                # sources are left out of the web build rather than half-supported.
-                if "bandcamp.com" not in link:
-                    continue
-                print(f"[{i}/{len(posts)}] {link}")
-                tracks = expand(client, link)
-                time.sleep(REQUEST_DELAY)
-
-                new_entries = []
-                for t in tracks:
-                    if t.webpage_url in known:
-                        continue
-                    known.add(t.webpage_url)
-                    new_entries.append(
-                        {
-                            "id": store.track_id(t.webpage_url),
-                            "webpage_url": t.webpage_url,
-                            "title": t.title,
-                            "artist": t.artist,
-                            "thumbnail": t.thumbnail,
-                            "message_id": post.id,
-                            "message_text": post.text,
-                            "message_date": post.date,
-                        }
-                    )
-                if new_entries:
-                    added_total += len(store.add_tracks(new_entries))
+        for i, item in enumerate(work, 1):
+            print(f"[{i}/{len(work)}] пост {item['id']}: {item['link']}")
+            tracks = expand(client, item["link"])
+            time.sleep(REQUEST_DELAY)
+            if not tracks:
+                if now - item["since"] < PENDING_DAYS * 86400:
+                    still_pending.append(item)
+                    print("    не разобрался - повторю в следующий раз")
+                else:
+                    print(f"    не разбирается {PENDING_DAYS:.0f} дней - сдаюсь")
+                continue
+            entries = new_entries(item, tracks, known)
+            if entries:
+                added_total += len(store.add_tracks(entries))
 
     # Move the cursor only after a full pass, so an interrupted run re-reads those posts
     # next time instead of silently skipping them.
-    state["last_id"] = posts[-1].id
+    if posts:
+        state["last_id"] = posts[-1].id
+    state["pending"] = still_pending
     store.save_state(state)
-    print(f"добавлено треков: {added_total}, курсор: {state['last_id']}")
+    print(f"добавлено треков: {added_total}, курсор: {state['last_id']}, ждут повтора: {len(still_pending)}")
     return 0
 
 
