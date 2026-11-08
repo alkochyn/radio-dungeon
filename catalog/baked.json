@@ -73121,6 +73121,256 @@
    "message_date": "2026-03-14T02:14:44+00:00",
    "tracks": [
     {
+     "id": "8573c584784b",
+     "title": "⏏Startup-> NEW GAME",
+     "artist": "Equip",
+     "thumbnail": "https://f4.bcbits.com/img/a0731028231_5.jpg",
+     "webpage_url": "https://worldofequip.bandcamp.com/track/startup-new-game",
+     "album": "I Dreamed Of A Palace In The Sky",
+     "album_url": "https://worldofequip.bandcamp.com/album/i-dreamed-of-a-palace-in-the-sky",
+     "duration": 9.5
+    },
+    {
+     "id": "1fc4dd6ced69",
+     "title": "I Dreamed Of A Palace In The Sky ~Opening Credits~",
+     "artist": "Equip",
+     "thumbnail": "https://f4.bcbits.com/img/a0731028231_5.jpg",
+     "webpage_url": "https://worldofequip.bandcamp.com/track/i-dreamed-of-a-palace-in-the-sky-opening-credits",
+     "album": "I Dreamed Of A Palace In The Sky",
+     "album_url": "https://worldofequip.bandcamp.com/album/i-dreamed-of-a-palace-in-the-sky",
+     "duration": 255.125
+    },
+    {
+     "id": "312ba57bf26c",
+     "title": "EQUIP menu ⚔(Character Customization)",
+     "artist": "Equip",
+     "thumbnail": "https://f4.bcbits.com/img/a0731028231_5.jpg",
+     "webpage_url": "https://worldofequip.bandcamp.com/track/equip-menu-character-customization",
+     "album": "I Dreamed Of A Palace In The Sky",
+     "album_url": "https://worldofequip.bandcamp.com/album/i-dreamed-of-a-palace-in-the-sky",
+     "duration": 162
+    },
+    {
+     "id": "764e3e0c585b",
+     "title": "The Dream Begins [Outside The Gates]",
+     "artist": "Equip",
+     "thumbnail": "https://f4.bcbits.com/img/a0731028231_5.jpg",
+     "webpage_url": "https://worldofequip.bandcamp.com/track/the-dream-begins-outside-the-gates",
+     "album": "I Dreamed Of A Palace In The Sky",
+     "album_url": "https://worldofequip.bandcamp.com/album/i-dreamed-of-a-palace-in-the-sky",
+     "duration": 200.285
+    },
+    {
+     "id": "5b9d0610874d",
+     "title": "Another Way In {SEWERS}",
+     "artist": "Equip",
+     "thumbnail": "https://f4.bcbits.com/img/a0731028231_5.jpg",
+     "webpage_url": "https://worldofequip.bandcamp.com/track/another-way-in-sewers",
+     "album": "I Dreamed Of A Palace In The Sky",
+     "album_url": "https://worldofequip.bandcamp.com/album/i-dreamed-of-a-palace-in-the-sky",
+     "duration": 91.8242
+    },
+    {
+     "id": "d7dee7806a46",
+     "title": "LICHEN-ENCRUSTED Chamber",
+     "artist": "Equip",
+     "thumbnail": "https://f4.bcbits.com/img/a0731028231_5.jpg",
+     "webpage_url": "https://worldofequip.bandcamp.com/track/lichen-encrusted-chamber",
+     "album": "I Dreamed Of A Palace In The Sky",
+     "album_url": "https://worldofequip.bandcamp.com/album/i-dreamed-of-a-palace-in-the-sky",
+     "duration": 146.016
+    },
+    {
+     "id": "b68a961bcb9c",
+     "title": "Hidden Grotto ~FROZEN IN TIME~",
+     "artist": "Equip",
+     "thumbnail": "https://f4.bcbits.com/img/a0731028231_5.jpg",
+     "webpage_url": "https://worldofequip.bandcamp.com/track/hidden-grotto-frozen-in-time",
+     "album": "I Dreamed Of A Palace In The Sky",
+     "album_url": "https://worldofequip.bandcamp.com/album/i-dreamed-of-a-palace-in-the-sky",
+     "duration": 150.5
+    },
+    {
+     "id": "801744625b25",
+     "title": "D r u i d s [Encounter]",
+     "artist": "Equip",
+     "thumbnail": "https://f4.bcbits.com/img/a0731028231_5.jpg",
+     "webpage_url": "https://worldofequip.bandcamp.com/track/d-r-u-i-d-s-encounter",
+     "album": "I Dreamed Of A Palace In The Sky",
+     "album_url": "https://worldofequip.bandcamp.com/album/i-dreamed-of-a-palace-in-the-sky",
+     "duration": 188.227
+    },
+    {
+     "id": "20ae475fc62c",
+     "title": "d r e a m c o r r i d o r",
+     "artist": "Equip",
+     "thumbnail": "https://f4.bcbits.com/img/a0731028231_5.jpg",
+     "webpage_url": "https://worldofequip.bandcamp.com/track/d-r-e-a-m-c-o-r-r-i-d-o-r",
+     "album": "I Dreamed Of A Palace In The Sky",
+     "album_url": "https://worldofequip.bandcamp.com/album/i-dreamed-of-a-palace-in-the-sky",
+     "duration": 64.6172
+    },
+    {
+     "id": "e58c3e736c68",
+     "title": "Hunting ⬆&⬇ (d r e a m s of the Overworld)",
+     "artist": "Equip",
+     "thumbnail": "https://f4.bcbits.com/img/a0731028231_5.jpg",
+     "webpage_url": "https://worldofequip.bandcamp.com/track/hunting-d-r-e-a-m-s-of-the-overworld",
+     "album": "I Dreamed Of A Palace In The Sky",
+     "album_url": "https://worldofequip.bandcamp.com/album/i-dreamed-of-a-palace-in-the-sky",
+     "duration": 120.805
+    },
+    {
+     "id": "eb6d737c9fa7",
+     "title": "Passage of Shifting Floors-> COLLAPSE",
+     "artist": "Equip",
+     "thumbnail": "https://f4.bcbits.com/img/a0731028231_5.jpg",
+     "webpage_url": "https://worldofequip.bandcamp.com/track/passage-of-shifting-floors-collapse",
+     "album": "I Dreamed Of A Palace In The Sky",
+     "album_url": "https://worldofequip.bandcamp.com/album/i-dreamed-of-a-palace-in-the-sky",
+     "duration": 140.102
+    },
+    {
+     "id": "a70c76a000bc",
+     "title": "D U N G E O N",
+     "artist": "Equip",
+     "thumbnail": "https://f4.bcbits.com/img/a0731028231_5.jpg",
+     "webpage_url": "https://worldofequip.bandcamp.com/track/d-u-n-g-e-o-n",
+     "album": "I Dreamed Of A Palace In The Sky",
+     "album_url": "https://worldofequip.bandcamp.com/album/i-dreamed-of-a-palace-in-the-sky",
+     "duration": 262.102
+    },
+    {
+     "id": "70b27806c095",
+     "title": "Passage Into The Mirror of Truth [REFLECTIONS of the SELF]",
+     "artist": "Equip",
+     "thumbnail": "https://f4.bcbits.com/img/a0731028231_5.jpg",
+     "webpage_url": "https://worldofequip.bandcamp.com/track/passage-into-the-mirror-of-truth-reflections-of-the-self",
+     "album": "I Dreamed Of A Palace In The Sky",
+     "album_url": "https://worldofequip.bandcamp.com/album/i-dreamed-of-a-palace-in-the-sky",
+     "duration": 137.898
+    },
+    {
+     "id": "e023dcbe5f4b",
+     "title": "Identity",
+     "artist": "Equip",
+     "thumbnail": "https://f4.bcbits.com/img/a0731028231_5.jpg",
+     "webpage_url": "https://worldofequip.bandcamp.com/track/identity",
+     "album": "I Dreamed Of A Palace In The Sky",
+     "album_url": "https://worldofequip.bandcamp.com/album/i-dreamed-of-a-palace-in-the-sky",
+     "duration": 200
+    },
+    {
+     "id": "292199c30638",
+     "title": "RE-ENERGIZED (groundskeeping)",
+     "artist": "Equip",
+     "thumbnail": "https://f4.bcbits.com/img/a0731028231_5.jpg",
+     "webpage_url": "https://worldofequip.bandcamp.com/track/re-energized-groundskeeping",
+     "album": "I Dreamed Of A Palace In The Sky",
+     "album_url": "https://worldofequip.bandcamp.com/album/i-dreamed-of-a-palace-in-the-sky",
+     "duration": 144.719
+    },
+    {
+     "id": "5b5c133dc22f",
+     "title": "Peaceful Clearing ⛺",
+     "artist": "Equip",
+     "thumbnail": "https://f4.bcbits.com/img/a0731028231_5.jpg",
+     "webpage_url": "https://worldofequip.bandcamp.com/track/peaceful-clearing",
+     "album": "I Dreamed Of A Palace In The Sky",
+     "album_url": "https://worldofequip.bandcamp.com/album/i-dreamed-of-a-palace-in-the-sky",
+     "duration": 117.453
+    },
+    {
+     "id": "5f0b8ec49f69",
+     "title": "MOONLIT CHAMBER [s a n d & s n a k e s]",
+     "artist": "Equip",
+     "thumbnail": "https://f4.bcbits.com/img/a0731028231_5.jpg",
+     "webpage_url": "https://worldofequip.bandcamp.com/track/moonlit-chamber-s-a-n-d-s-n-a-k-e-s",
+     "album": "I Dreamed Of A Palace In The Sky",
+     "album_url": "https://worldofequip.bandcamp.com/album/i-dreamed-of-a-palace-in-the-sky",
+     "duration": 116.703
+    },
+    {
+     "id": "a7e764558ad6",
+     "title": "The STAFF",
+     "artist": "Equip",
+     "thumbnail": "https://f4.bcbits.com/img/a0731028231_5.jpg",
+     "webpage_url": "https://worldofequip.bandcamp.com/track/the-staff",
+     "album": "I Dreamed Of A Palace In The Sky",
+     "album_url": "https://worldofequip.bandcamp.com/album/i-dreamed-of-a-palace-in-the-sky",
+     "duration": 201.375
+    },
+    {
+     "id": "0888363563e7",
+     "title": "Ascending s k y w a r d",
+     "artist": "Equip",
+     "thumbnail": "https://f4.bcbits.com/img/a0731028231_5.jpg",
+     "webpage_url": "https://worldofequip.bandcamp.com/track/ascending-s-k-y-w-a-r-d",
+     "album": "I Dreamed Of A Palace In The Sky",
+     "album_url": "https://worldofequip.bandcamp.com/album/i-dreamed-of-a-palace-in-the-sky",
+     "duration": 194.375
+    },
+    {
+     "id": "65c4d93223db",
+     "title": "Skytrot",
+     "artist": "Equip",
+     "thumbnail": "https://f4.bcbits.com/img/a0731028231_5.jpg",
+     "webpage_url": "https://worldofequip.bandcamp.com/track/skytrot",
+     "album": "I Dreamed Of A Palace In The Sky",
+     "album_url": "https://worldofequip.bandcamp.com/album/i-dreamed-of-a-palace-in-the-sky",
+     "duration": 160.5
+    },
+    {
+     "id": "b71960418c84",
+     "title": "Spherical Floating Gardens",
+     "artist": "Equip",
+     "thumbnail": "https://f4.bcbits.com/img/a0731028231_5.jpg",
+     "webpage_url": "https://worldofequip.bandcamp.com/track/spherical-floating-gardens-2",
+     "album": "I Dreamed Of A Palace In The Sky",
+     "album_url": "https://worldofequip.bandcamp.com/album/i-dreamed-of-a-palace-in-the-sky",
+     "duration": 226.352
+    },
+    {
+     "id": "98ec69ae0db3",
+     "title": "s t e a m w o r k s",
+     "artist": "Equip",
+     "thumbnail": "https://f4.bcbits.com/img/a0731028231_5.jpg",
+     "webpage_url": "https://worldofequip.bandcamp.com/track/s-t-e-a-m-w-o-r-k-s",
+     "album": "I Dreamed Of A Palace In The Sky",
+     "album_url": "https://worldofequip.bandcamp.com/album/i-dreamed-of-a-palace-in-the-sky",
+     "duration": 156.148
+    },
+    {
+     "id": "522ccce97a21",
+     "title": "CLOUD GENERATOR ☁",
+     "artist": "Equip",
+     "thumbnail": "https://f4.bcbits.com/img/a0731028231_5.jpg",
+     "webpage_url": "https://worldofequip.bandcamp.com/track/cloud-generator",
+     "album": "I Dreamed Of A Palace In The Sky",
+     "album_url": "https://worldofequip.bandcamp.com/album/i-dreamed-of-a-palace-in-the-sky",
+     "duration": 479.375
+    },
+    {
+     "id": "706b6e8409a1",
+     "title": "Reunited",
+     "artist": "Equip",
+     "thumbnail": "https://f4.bcbits.com/img/a0731028231_5.jpg",
+     "webpage_url": "https://worldofequip.bandcamp.com/track/reunited",
+     "album": "I Dreamed Of A Palace In The Sky",
+     "album_url": "https://worldofequip.bandcamp.com/album/i-dreamed-of-a-palace-in-the-sky",
+     "duration": 207.75
+    },
+    {
+     "id": "ef5f975b9d1d",
+     "title": "CONTINUE?",
+     "artist": "Equip",
+     "thumbnail": "https://f4.bcbits.com/img/a0731028231_5.jpg",
+     "webpage_url": "https://worldofequip.bandcamp.com/track/continue",
+     "album": "I Dreamed Of A Palace In The Sky",
+     "album_url": "https://worldofequip.bandcamp.com/album/i-dreamed-of-a-palace-in-the-sky",
+     "duration": 136.053
+    },
+    {
      "id": "447c6454e725",
      "title": "⏏Startup-> NEW GAME",
      "artist": "Equip",
@@ -88557,6 +88807,52 @@
      "album": "HDK 31 † Music for Dungeons",
      "album_url": "https://heimatderkatastrophe.bandcamp.com/album/hdk-31-music-for-dungeons",
      "duration": 1200.01
+    }
+   ]
+  },
+  {
+   "message_id": 1208,
+   "message_date": "2026-11-07T01:18:56+00:00",
+   "tracks": [
+    {
+     "id": "d595058bdc46",
+     "title": "The Ivory Knight",
+     "artist": "SWORDGLEAM",
+     "thumbnail": "https://f4.bcbits.com/img/a2035425880_5.jpg",
+     "webpage_url": "https://heimatderkatastrophe.bandcamp.com/track/the-ivory-knight",
+     "album": "HDK 191 † Songs of Battle-Magic",
+     "album_url": "https://heimatderkatastrophe.bandcamp.com/album/hdk-191-songs-of-battle-magic",
+     "duration": 806
+    },
+    {
+     "id": "0d99cf43bbd3",
+     "title": "Mighty and True",
+     "artist": "SWORDGLEAM",
+     "thumbnail": "https://f4.bcbits.com/img/a2035425880_5.jpg",
+     "webpage_url": "https://heimatderkatastrophe.bandcamp.com/track/mighty-and-true",
+     "album": "HDK 191 † Songs of Battle-Magic",
+     "album_url": "https://heimatderkatastrophe.bandcamp.com/album/hdk-191-songs-of-battle-magic",
+     "duration": 316.182
+    },
+    {
+     "id": "1c63d8755d8f",
+     "title": "Borne upon the Kingshield",
+     "artist": "SWORDGLEAM",
+     "thumbnail": "https://f4.bcbits.com/img/a2035425880_5.jpg",
+     "webpage_url": "https://heimatderkatastrophe.bandcamp.com/track/borne-upon-the-kingshield",
+     "album": "HDK 191 † Songs of Battle-Magic",
+     "album_url": "https://heimatderkatastrophe.bandcamp.com/album/hdk-191-songs-of-battle-magic",
+     "duration": 270
+    },
+    {
+     "id": "6039386f1663",
+     "title": "Enthroned in Halcyon realms",
+     "artist": "SWORDGLEAM",
+     "thumbnail": "https://f4.bcbits.com/img/a2035425880_5.jpg",
+     "webpage_url": "https://heimatderkatastrophe.bandcamp.com/track/enthroned-in-halcyon-realms",
+     "album": "HDK 191 † Songs of Battle-Magic",
+     "album_url": "https://heimatderkatastrophe.bandcamp.com/album/hdk-191-songs-of-battle-magic",
+     "duration": 907.4
     }
    ]
   }
