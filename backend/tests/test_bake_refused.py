@@ -81,9 +81,13 @@ def mid_of(url):
     return int(url.split("band")[1].split(".")[0])
 
 
-def bake(directory, tracks, previous, albums, answer, baked=None, state=None):
-    """Run the bake once. Returns (posts by message id, requested urls, album cache, outputs)."""
+def bake(directory, tracks, previous, albums, answer, baked=None, state=None, outside=None):
+    """Run the bake once. Returns (posts by message id, requested urls, album cache, outputs).
+
+    outside - links the table server hands out; none by default, and never the real server.
+    """
     directory = Path(directory)
+    build.fetch_outside_links = lambda url: dict(outside or {})
     if baked is not None:
         (directory / build.BAKED_NAME).write_text(json.dumps(baked), encoding="utf-8")
     (directory / "tracks.json").write_text(json.dumps(tracks), encoding="utf-8")
@@ -223,6 +227,41 @@ with tempfile.TemporaryDirectory() as tmp:
     kept, requested, _, _ = bake(tmp, tracks, [], albums, sparse)
     check("ошибки вперемешку с успехами не останавливают", len(requested) == count, f"{len(requested)} из {count}")
     check("живые альбомы обновились", all(m in kept for m in range(2, count + 1, 2)), f"{len(kept)} постов")
+
+print("ссылки с сервера стола")
+with tempfile.TemporaryDirectory() as tmp:
+    # Bandcamp refuses, every link the run has is dead; the server holds fresh ones for odd posts.
+    remembered = [
+        {"message_id": m, "message_date": "2026-01-01T00:00:00+00:00", "tracks": [{k: v for k, v in baked_track(m, now).items() if k in build.BAKED_FIELDS}]}
+        for m in range(1, count + 1)
+    ]
+    dead = [post_of(baked_track(m, now - HOUR)) for m in range(1, count + 1)]
+    fresh = lambda m: f"https://t4.bcbits.com/stream/x/mp3-128/{m}?p=0&ts={int(now + 20 * HOUR)}&t=srv"  # noqa: E731
+    # Другое написание адреса: заглавные в домене и косая черта в конце.
+    outside = {f"https://Band{m}.bandcamp.com/track/song/": fresh(m) for m in range(1, count + 1, 2)}
+    outside["https://band2.bandcamp.com/track/song"] = "https://evil.example/stream/x?ts=9999999999"
+    outside["https://band4.bandcamp.com/track/song"] = f"https://t4.bcbits.com/stream/x?ts={int(now - HOUR)}"
+    kept, _, _, _ = bake(tmp, tracks, dead, albums, lambda url: BOT_PAGE, {"posts": remembered}, outside=outside)
+    check("посты со ссылками с сервера играют", all(kept.get(m, {}).get("tracks", [{}])[0].get("stream_url") == fresh(m) for m in range(1, count + 1, 2)), f"{len(kept)} постов")
+    check("чужие и протухшие ссылки не взяты", all(m not in kept for m in range(2, count + 1, 2)))
+    check("у взятых треков все поля на месте", all(set(build.BAKED_FIELDS) <= set(kept[m]["tracks"][0]) for m in kept))
+
+    # Пауза после отказа: bandcamp не спрашиваем, а ссылки с сервера всё равно идут в дело.
+    state = {"refused_at": now - HOUR, "recovering": True}
+    kept, requested, _, _ = bake(tmp, tracks, dead, albums, lambda url: BOT_PAGE, {"posts": remembered}, state=state, outside=outside)
+    check("во время паузы тоже играют", len(kept) == len(range(1, count + 1, 2)) and requested == [], f"{len(kept)} постов, {len(requested)} запросов")
+
+    # Своя ссылка живёт дольше серверной - остаётся своя.
+    longer = [post_of(baked_track(m, now + 23 * HOUR)) for m in range(1, count + 1)]
+    kept, _, _, _ = bake(tmp, tracks, longer, albums, lambda url: BOT_PAGE, {"posts": remembered}, state=state, outside=outside)
+    check("ссылка дольше серверной не заменяется", all("&t=srv" not in kept[m]["tracks"][0]["stream_url"] for m in kept), f"{len(kept)} постов")
+
+print("трек без сведений")
+with tempfile.TemporaryDirectory() as tmp:
+    # Never baked and not in baked.json: a link alone says nothing about the title or length.
+    outside = {page_url(1): f"https://t4.bcbits.com/stream/x/mp3-128/1?p=0&ts={int(now + 20 * HOUR)}&t=srv"}
+    kept, _, _, _ = bake(tmp, tracks[:1], [], {"1": album_url(1)}, lambda url: BOT_PAGE, {"posts": []}, outside=outside)
+    check("без сведений о треке ссылку не берёт", 1 not in kept)
 
 print("всё работает")
 with tempfile.TemporaryDirectory() as tmp:
