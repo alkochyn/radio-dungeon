@@ -81,13 +81,14 @@ def mid_of(url):
     return int(url.split("band")[1].split(".")[0])
 
 
-def bake(directory, tracks, previous, albums, answer, baked=None, state=None, outside=None):
+def bake(directory, tracks, previous, albums, answer, baked=None, state=None, outside=None, pages=None):
     """Run the bake once. Returns (posts by message id, requested urls, album cache, outputs).
 
-    outside - links the table server hands out; none by default, and never the real server.
+    outside, pages - links and albums dungeon-catalog hands out; none by default, and never
+    the real service.
     """
     directory = Path(directory)
-    build.fetch_outside_links = lambda url: dict(outside or {})
+    build.fetch_dungeon_catalog = lambda url: {"links": dict(outside or {}), "pages": dict(pages or {})}
     if baked is not None:
         (directory / build.BAKED_NAME).write_text(json.dumps(baked), encoding="utf-8")
     (directory / "tracks.json").write_text(json.dumps(tracks), encoding="utf-8")
@@ -228,7 +229,7 @@ with tempfile.TemporaryDirectory() as tmp:
     check("ошибки вперемешку с успехами не останавливают", len(requested) == count, f"{len(requested)} из {count}")
     check("живые альбомы обновились", all(m in kept for m in range(2, count + 1, 2)), f"{len(kept)} постов")
 
-print("ссылки с сервера стола")
+print("ссылки из dungeon-catalog")
 with tempfile.TemporaryDirectory() as tmp:
     # Bandcamp refuses, every link the run has is dead; the server holds fresh ones for odd posts.
     remembered = [
@@ -262,6 +263,26 @@ with tempfile.TemporaryDirectory() as tmp:
     outside = {page_url(1): f"https://t4.bcbits.com/stream/x/mp3-128/1?p=0&ts={int(now + 20 * HOUR)}&t=srv"}
     kept, _, _, _ = bake(tmp, tracks[:1], [], {"1": album_url(1)}, lambda url: BOT_PAGE, {"posts": []}, outside=outside)
     check("без сведений о треке ссылку не берёт", 1 not in kept)
+
+print("новый пост из альбома dungeon-catalog")
+with tempfile.TemporaryDirectory() as tmp:
+    # Never baked, not in baked.json, bandcamp refuses - but the extension opened the album.
+    stream1 = f"https://t4.bcbits.com/stream/x/mp3-128/1?p=0&ts={int(now + 20 * HOUR)}&t=srv"
+    pages = {
+        album_url(1): {
+            "album": album_url(1),
+            "title": "Record",
+            "artist": "Band",
+            "cover": "https://f4.bcbits.com/img/a1_5.jpg",
+            "tracks": [{"url": page_url(1), "title": "Song 1", "artist": "Band", "duration": 61.5}],
+        }
+    }
+    kept, _, _, _ = bake(tmp, tracks[:1], [], {"1": album_url(1)}, lambda url: BOT_PAGE, {"posts": []}, outside={page_url(1): stream1}, pages=pages)
+    record = kept.get(1, {}).get("tracks", [{}])[0]
+    check("пост играет", record.get("stream_url") == stream1, str(record))
+    check("с названием альбома, длительностью и обложкой", (record.get("album"), record.get("duration"), record.get("thumbnail")) == ("Record", 61.5, "https://f4.bcbits.com/img/a1_5.jpg"), str(record))
+    published = json.loads((Path(tmp) / build.PUBLISHED_CATALOG).read_text(encoding="utf-8"))
+    check("и попал в каталог", [p["message_id"] for p in published["posts"]] == [1])
 
 print("всё работает")
 with tempfile.TemporaryDirectory() as tmp:

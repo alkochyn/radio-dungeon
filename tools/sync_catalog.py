@@ -24,6 +24,11 @@ sys.path.insert(0, str(ROOT / "backend"))
 from app import bandcamp, store, web_sync  # noqa: E402
 from app.config import CHANNEL  # noqa: E402
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import dungeon_catalog  # noqa: E402
+
+fetch_dungeon_catalog = dungeon_catalog.fetch
+
 REQUEST_DELAY = float(os.environ.get("BC_REQUEST_DELAY", "1.0"))
 # A link that would not expand is retried for this long, then given up: an album taken
 # down for good should not cost a request every two hours forever.
@@ -44,6 +49,26 @@ def expand(client: httpx.Client, link: str) -> list[bandcamp.BcTrack]:
         return bandcamp.parse_page(html, link).tracks
     except (bandcamp.NotBandcamp, ValueError):
         return []
+
+
+def from_dungeon_catalog(pages: dict[str, dict], link: str) -> list[bandcamp.BcTrack]:
+    """The same tracks from the album dungeon-catalog has, if it has it. No request to bandcamp."""
+    album = pages.get(dungeon_catalog.page_key(link))
+    if not album:
+        return []
+    return [
+        bandcamp.BcTrack(
+            webpage_url=t["url"],
+            title=t["title"],
+            artist=t["artist"] or album["artist"],
+            stream_url="",
+            duration=t["duration"],
+            thumbnail=album["thumbnail"],
+            album_url=album["album_url"],
+            album_title=album["album"],
+        )
+        for t in album["tracks"]
+    ]
 
 
 def new_entries(item: dict, tracks: list[bandcamp.BcTrack], known: set[str]) -> list[dict]:
@@ -93,13 +118,20 @@ async def main() -> int:
     known = store.known_urls()
     added_total = 0
     still_pending = []
+    # Bandcamp refuses the runners, so a new post is first looked up among the albums
+    # dungeon-catalog already has (dungeon_catalog.py); bandcamp is asked only for the rest.
+    pages = dungeon_catalog.clean_pages(fetch_dungeon_catalog(dungeon_catalog.URL).get("pages")) if dungeon_catalog.URL else {}
 
     headers = {"User-Agent": USER_AGENT, "Accept-Language": "en,ru;q=0.9"}
     with httpx.Client(timeout=TIMEOUT, follow_redirects=True, headers=headers) as client:
         for i, item in enumerate(work, 1):
             print(f"[{i}/{len(work)}] пост {item['id']}: {item['link']}")
-            tracks = expand(client, item["link"])
-            time.sleep(REQUEST_DELAY)
+            tracks = from_dungeon_catalog(pages, item["link"])
+            if tracks:
+                print(f"    альбом из dungeon-catalog: {len(tracks)} треков")
+            else:
+                tracks = expand(client, item["link"])
+                time.sleep(REQUEST_DELAY)
             if not tracks:
                 if now - item["since"] < PENDING_DAYS * 86400:
                     still_pending.append(item)

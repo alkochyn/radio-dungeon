@@ -193,6 +193,8 @@ with tempfile.TemporaryDirectory() as tmpname:
     build.CATALOG_DIR = tmp
     build.ROOT = tmp
     build.REQUEST_DELAY = 0.0
+    # dungeon-catalog is a separate source with its own checks; this one is about the planner.
+    build.fetch_dungeon_catalog = lambda url: {}
     build.REFRESH_BUDGET = 1  # only the neediest, so post 2 must take the reuse path
     bandcamp.fetch_page = lambda client, url, log=print: "<html/>"
     bandcamp.parse_page = fake_parse
