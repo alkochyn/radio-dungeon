@@ -15,7 +15,7 @@ import re
 
 import httpx
 
-URL = os.environ.get("DUNGEON_CATALOG_URL", "https://80.47.239.2:8444/api/links")
+URL = os.environ.get("DUNGEON_CATALOG_URL", "https://80.47.239.2:3389/api/links")
 USER_AGENT = "radio-dungeon-player build"
 
 STREAM_RE = re.compile(r"^https://t\d+\.bcbits\.com/stream/\S+$")
