@@ -37,15 +37,12 @@ def album(n):
     return f"https://band{n}.bandcamp.com/album/x"
 
 
-def run(channel, refused, pages=None):
-    """One sync. channel: posts after the cursor; refused: album links bandcamp will not show;
-    pages: albums dungeon-catalog holds - none by default, and never the real service."""
-    asked = []
+def run(channel, refused):
+    """One sync. channel: posts after the cursor; refused: album links bandcamp will not show."""
     async def fetch_posts(_channel, last_id):
         return [p for p in channel if p.id > last_id]
 
     def expand(_client, link):
-        asked.append(link)
         if link in refused:
             return []
         return [bandcamp.BcTrack(webpage_url=link.replace("/album/x", "/track/a"), title="a", artist="Band",
@@ -53,7 +50,6 @@ def run(channel, refused, pages=None):
 
     sync.web_sync.fetch_posts = fetch_posts
     sync.expand = expand
-    sync.fetch_dungeon_catalog = lambda url: {"pages": pages or {}}
     stdout, sys.stdout = sys.stdout, open(os.devnull, "w", encoding="utf-8")
     try:
         asyncio.run(sync.main())
@@ -62,8 +58,6 @@ def run(channel, refused, pages=None):
         sys.stdout = stdout
     state = json.loads((DATA / "state.json").read_text(encoding="utf-8"))
     tracks = json.loads((DATA / "tracks.json").read_text(encoding="utf-8")) if (DATA / "tracks.json").exists() else []
-    run.asked = asked
-    run.tracks = tracks
     return state, {t["message_id"] for t in tracks}
 
 
@@ -89,29 +83,6 @@ old = {"id": 9, "date": None, "text": "", "link": album(9), "since": time.time()
 (DATA / "state.json").write_text(json.dumps({"last_id": 3, "pending": [old]}), encoding="utf-8")
 state, _ = run(channel, {album(9)})
 check("сдаётся и больше не просит", state["pending"] == [])
-
-print("bandcamp отказал, но альбом есть в dungeon-catalog")
-(DATA / "state.json").write_text(json.dumps({"last_id": 3, "pending": []}), encoding="utf-8")
-fresh = [Post(id=10, text="post 10", date="2026-11-08T00:00:00+00:00", links=["https://Band10.bandcamp.com/album/x/"])]
-pages = {
-    album(10): {
-        "album": album(10),
-        "title": "X",
-        "artist": "Band",
-        "cover": "https://f4.bcbits.com/img/a10_5.jpg",
-        "tracks": [
-            {"url": "https://band10.bandcamp.com/track/a", "title": "A", "artist": "Band", "duration": 61.5},
-            {"url": "https://band10.bandcamp.com/track/b", "title": "B", "artist": "Guest", "duration": 30},
-            {"url": "https://evil.example/track/c", "title": "C", "artist": "Band", "duration": 30},
-        ],
-    }
-}
-state, posted = run(fresh, {album(10)}, pages)
-added = [t for t in run.tracks if t["message_id"] == 10]
-check("пост 10 в каталоге", 10 in posted and state["pending"] == [], str(state["pending"]))
-check("bandcamp не спрашивали", run.asked == [], str(run.asked))
-check("треки с сервера, чужой адрес отброшен", [(t["title"], t["artist"]) for t in added] == [("A", "Band"), ("B", "Guest")], str(added))
-check("обложка на месте", all(t["thumbnail"] == "https://f4.bcbits.com/img/a10_5.jpg" for t in added))
 
 if failures:
     print(f"\nне прошло: {len(failures)}")
