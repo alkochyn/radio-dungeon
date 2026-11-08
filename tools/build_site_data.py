@@ -21,7 +21,6 @@ falling due in the same run. See the planning pass in main().
 import argparse
 import json
 import os
-import re
 import sys
 import time
 from pathlib import Path
@@ -32,6 +31,13 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "backend"))
 
 from app import bandcamp  # noqa: E402
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import dungeon_catalog  # noqa: E402
+
+# dungeon-catalog's links and albums - see dungeon_catalog.py. Empty variable - not asked.
+DUNGEON_CATALOG_URL = dungeon_catalog.URL
+fetch_dungeon_catalog = dungeon_catalog.fetch
 
 # Build inputs live outside site/ so that nothing but the player itself gets published.
 CATALOG_DIR = ROOT / "catalog"
@@ -90,63 +96,32 @@ USER_AGENT = (
 )
 
 
-# Since 2026-11-06 bandcamp answers GitHub's runners with a bot check, so this build can
-# no longer mint links itself. A browser extension on the owner's machine opens the albums
-# whose links are running out and hands fresh ones to the gather-the.party server; a run
-# takes every link from there that outlives the one it has, and the planner then finds
-# nothing to ask bandcamp about. Unreachable server or empty variable - the run goes on
-# exactly as before.
-OUTSIDE_LINKS_URL = os.environ.get("OUTSIDE_LINKS_URL", "https://gather-the.party/api/radio/links")
-STREAM_RE = re.compile(r"^https://t\d+\.bcbits\.com/stream/\S+$")
-PAGE_RE = re.compile(r"^https://[a-z0-9-]+\.bandcamp\.com/(album|track)/[^/]+$")
-
-
-def page_key(url: str) -> str:
-    """One spelling for a bandcamp page: the channel and the extension may differ in case or slash."""
-    m = re.match(r"^https?://([^/]+)(/[^?#]*)", (url or "").strip())
-    return f"https://{m.group(1).lower()}{m.group(2).rstrip('/')}" if m else ""
-
-
-def fetch_outside_links(url: str) -> dict:
-    """Track page -> stream url, everything the server holds, as it came. Any trouble - nothing."""
-    try:
-        response = httpx.get(url, timeout=30, headers={"User-Agent": USER_AGENT})
-        response.raise_for_status()
-        links = response.json().get("links")
-    except Exception as failure:  # noqa: BLE001 - this source is a bonus, never a reason to fail
-        print(f"ссылки с {url} не получены: {failure}")
-        return {}
-    return links if isinstance(links, dict) else {}
-
-
-def clean_outside_links(links: dict) -> dict[str, str]:
-    """Only bandcamp pages and bcbits streams: these urls end up in every listener's player."""
-    clean = {}
-    for page, stream in links.items():
-        key = page_key(page) if isinstance(page, str) else ""
-        if PAGE_RE.match(key) and isinstance(stream, str) and STREAM_RE.match(stream):
-            clean[key] = stream
-    return clean
-
-
-def adopt_outside_links(posts: list[dict], previous_tracks: dict[str, dict], known: dict[str, dict], links: dict[str, str], now: float) -> int:
+def adopt_catalog_links(
+    posts: list[dict],
+    previous_tracks: dict[str, dict],
+    known: dict[str, dict],
+    links: dict[str, str],
+    now: float,
+    by_url: dict[str, dict] | None = None,
+) -> int:
     """Put outside links into previous_tracks where they live longer. Returns how many.
 
     A record needs the track's details, not just its link: they come from what was baked
-    before, or from baked.json for a track whose links have all died. A track never baked
-    at all has no details yet and is left to bandcamp.
+    before, from baked.json for a track whose links have all died, or from the album the
+    extension opened (by_url) for a new post. A track with none of these is left to bandcamp.
     """
     adopted = 0
     for post in posts:
         for t in post["tracks"]:
-            stream = links.get(page_key(t["webpage_url"]))
+            key = dungeon_catalog.page_key(t["webpage_url"])
+            stream = links.get(key)
             expiry = bandcamp.stream_expiry(stream) if stream else None
             if not expiry or expiry <= now:
                 continue
             current = previous_tracks.get(t["id"])
             if current and (bandcamp.stream_expiry(current.get("stream_url", "")) or 0) >= expiry:
                 continue
-            details = current or known.get(t["id"])
+            details = current or known.get(t["id"]) or (by_url or {}).get(key)
             if not details:
                 continue
             previous_tracks[t["id"]] = {**{f: details.get(f) for f in BAKED_FIELDS}, "id": t["id"], "stream_url": stream}
@@ -283,11 +258,13 @@ def main() -> int:
 
     # What this run touches is decided before a single request goes out.
     now = time.time()
-    if OUTSIDE_LINKS_URL:
-        outside = clean_outside_links(fetch_outside_links(OUTSIDE_LINKS_URL))
+    if DUNGEON_CATALOG_URL:
+        payload = fetch_dungeon_catalog(DUNGEON_CATALOG_URL)
+        outside = dungeon_catalog.clean_links(payload.get("links"))
+        by_url = dungeon_catalog.track_details(dungeon_catalog.clean_pages(payload.get("pages")))
         known = {t["id"]: t for p in load_json(CATALOG_DIR / BAKED_NAME, {}).get("posts", []) for t in p.get("tracks", [])}
-        adopted = adopt_outside_links(posts, previous_tracks, known, outside, now)
-        print(f"ссылок с сервера стола: {len(outside)}, взято свежее своих: {adopted}")
+        adopted = adopt_catalog_links(posts, previous_tracks, known, outside, now, by_url)
+        print(f"ссылок из dungeon-catalog: {len(outside)}, взято свежее своих: {adopted}")
     soonest_of: dict[str, float] = {}
     for post in posts:
         bandcamp_tracks = [t for t in post["tracks"] if "bandcamp.com" in t["webpage_url"]]
