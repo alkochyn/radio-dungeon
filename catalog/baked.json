@@ -89093,6 +89093,62 @@
      "duration": 195
     }
    ]
+  },
+  {
+   "message_id": 1212,
+   "message_date": "2026-11-16T19:23:18+00:00",
+   "tracks": [
+    {
+     "id": "0f20030d2145",
+     "title": "The Mountain of Fire",
+     "artist": "Dragonlord",
+     "thumbnail": "https://f4.bcbits.com/img/a0996181354_5.jpg",
+     "webpage_url": "https://mushroomkeeprecords.bandcamp.com/track/the-mountain-of-fire",
+     "album": "Candor",
+     "album_url": "https://mushroomkeeprecords.bandcamp.com/album/candor",
+     "duration": 593.156
+    },
+    {
+     "id": "486d12d68001",
+     "title": "Candor",
+     "artist": "Dragonlord",
+     "thumbnail": "https://f4.bcbits.com/img/a0996181354_5.jpg",
+     "webpage_url": "https://mushroomkeeprecords.bandcamp.com/track/candor",
+     "album": "Candor",
+     "album_url": "https://mushroomkeeprecords.bandcamp.com/album/candor",
+     "duration": 370.299
+    },
+    {
+     "id": "50cf124446e4",
+     "title": "Dragonflight",
+     "artist": "Dragonlord",
+     "thumbnail": "https://f4.bcbits.com/img/a0996181354_5.jpg",
+     "webpage_url": "https://mushroomkeeprecords.bandcamp.com/track/dragonflight",
+     "album": "Candor",
+     "album_url": "https://mushroomkeeprecords.bandcamp.com/album/candor",
+     "duration": 339.442
+    },
+    {
+     "id": "c0d51751d3c4",
+     "title": "A Day Red and Grey",
+     "artist": "Dragonlord",
+     "thumbnail": "https://f4.bcbits.com/img/a0996181354_5.jpg",
+     "webpage_url": "https://mushroomkeeprecords.bandcamp.com/track/a-day-red-and-grey",
+     "album": "Candor",
+     "album_url": "https://mushroomkeeprecords.bandcamp.com/album/candor",
+     "duration": 458.585
+    },
+    {
+     "id": "10d9dc274896",
+     "title": "Arise, Flame of the North!",
+     "artist": "Dragonlord",
+     "thumbnail": "https://f4.bcbits.com/img/a0996181354_5.jpg",
+     "webpage_url": "https://mushroomkeeprecords.bandcamp.com/track/arise-flame-of-the-north",
+     "album": "Candor",
+     "album_url": "https://mushroomkeeprecords.bandcamp.com/album/candor",
+     "duration": 505.464
+    }
+   ]
   }
  ]
 }
