@@ -89149,6 +89149,102 @@
      "duration": 505.464
     }
    ]
+  },
+  {
+   "message_id": 1213,
+   "message_date": "2026-11-18T06:27:47+00:00",
+   "tracks": [
+    {
+     "id": "6ccd5809748c",
+     "title": "Il Trono Autunnale",
+     "artist": "Estrema Fortezza",
+     "thumbnail": "https://f4.bcbits.com/img/a0567594625_5.jpg",
+     "webpage_url": "https://estremafortezza.bandcamp.com/track/il-trono-autunnale",
+     "album": "La Ballata del Re Cervo e il Cacciatore",
+     "album_url": "https://estremafortezza.bandcamp.com/album/la-ballata-del-re-cervo-e-il-cacciatore",
+     "duration": 479.031
+    },
+    {
+     "id": "10db2314a16c",
+     "title": "Il Sire Cacciatore",
+     "artist": "Estrema Fortezza",
+     "thumbnail": "https://f4.bcbits.com/img/a0567594625_5.jpg",
+     "webpage_url": "https://estremafortezza.bandcamp.com/track/il-sire-cacciatore",
+     "album": "La Ballata del Re Cervo e il Cacciatore",
+     "album_url": "https://estremafortezza.bandcamp.com/album/la-ballata-del-re-cervo-e-il-cacciatore",
+     "duration": 329.43
+    },
+    {
+     "id": "3c1d05d4e165",
+     "title": "Lo Stregone di Brina",
+     "artist": "Estrema Fortezza",
+     "thumbnail": "https://f4.bcbits.com/img/a0567594625_5.jpg",
+     "webpage_url": "https://estremafortezza.bandcamp.com/track/lo-stregone-di-brina",
+     "album": "La Ballata del Re Cervo e il Cacciatore",
+     "album_url": "https://estremafortezza.bandcamp.com/album/la-ballata-del-re-cervo-e-il-cacciatore",
+     "duration": 277
+    },
+    {
+     "id": "378022fe5701",
+     "title": "Ultima Adunata della Luce",
+     "artist": "Estrema Fortezza",
+     "thumbnail": "https://f4.bcbits.com/img/a0567594625_5.jpg",
+     "webpage_url": "https://estremafortezza.bandcamp.com/track/ultima-adunata-della-luce",
+     "album": "La Ballata del Re Cervo e il Cacciatore",
+     "album_url": "https://estremafortezza.bandcamp.com/album/la-ballata-del-re-cervo-e-il-cacciatore",
+     "duration": 265.779
+    },
+    {
+     "id": "b7ed06cc2971",
+     "title": "Ed Egli Porta Corona...",
+     "artist": "Estrema Fortezza",
+     "thumbnail": "https://f4.bcbits.com/img/a0567594625_5.jpg",
+     "webpage_url": "https://estremafortezza.bandcamp.com/track/ed-egli-porta-corona",
+     "album": "La Ballata del Re Cervo e il Cacciatore",
+     "album_url": "https://estremafortezza.bandcamp.com/album/la-ballata-del-re-cervo-e-il-cacciatore",
+     "duration": 284.355
+    },
+    {
+     "id": "295e1d410aa3",
+     "title": "La Madre che Tutto Procrea",
+     "artist": "Estrema Fortezza",
+     "thumbnail": "https://f4.bcbits.com/img/a0567594625_5.jpg",
+     "webpage_url": "https://estremafortezza.bandcamp.com/track/la-madre-che-tutto-procrea",
+     "album": "La Ballata del Re Cervo e il Cacciatore",
+     "album_url": "https://estremafortezza.bandcamp.com/album/la-ballata-del-re-cervo-e-il-cacciatore",
+     "duration": 396.553
+    },
+    {
+     "id": "855df4b9fbf0",
+     "title": "In Riverenza al Vuoto",
+     "artist": "Estrema Fortezza",
+     "thumbnail": "https://f4.bcbits.com/img/a0567594625_5.jpg",
+     "webpage_url": "https://estremafortezza.bandcamp.com/track/in-riverenza-al-vuoto",
+     "album": "La Ballata del Re Cervo e il Cacciatore",
+     "album_url": "https://estremafortezza.bandcamp.com/album/la-ballata-del-re-cervo-e-il-cacciatore",
+     "duration": 427.688
+    },
+    {
+     "id": "297a7ba7b10d",
+     "title": "Il Bosco Morente",
+     "artist": "Estrema Fortezza",
+     "thumbnail": "https://f4.bcbits.com/img/a0567594625_5.jpg",
+     "webpage_url": "https://estremafortezza.bandcamp.com/track/il-bosco-morente",
+     "album": "La Ballata del Re Cervo e il Cacciatore",
+     "album_url": "https://estremafortezza.bandcamp.com/album/la-ballata-del-re-cervo-e-il-cacciatore",
+     "duration": 265.779
+    },
+    {
+     "id": "3ad5d9b69d4b",
+     "title": "Il Ritorno del Principe Solare",
+     "artist": "Estrema Fortezza",
+     "thumbnail": "https://f4.bcbits.com/img/a0567594625_5.jpg",
+     "webpage_url": "https://estremafortezza.bandcamp.com/track/il-ritorno-del-principe-solare",
+     "album": "La Ballata del Re Cervo e il Cacciatore",
+     "album_url": "https://estremafortezza.bandcamp.com/album/la-ballata-del-re-cervo-e-il-cacciatore",
+     "duration": 325.965
+    }
+   ]
   }
  ]
 }
