@@ -89245,6 +89245,52 @@
      "duration": 325.965
     }
    ]
+  },
+  {
+   "message_id": 1214,
+   "message_date": "2026-11-18T19:34:29+00:00",
+   "tracks": [
+    {
+     "id": "6846befa6583",
+     "title": "Draped In Magical Mist",
+     "artist": "Old Forsaken Realm",
+     "thumbnail": "https://f4.bcbits.com/img/a0024915757_5.jpg",
+     "webpage_url": "https://oldforsakenrealm.bandcamp.com/track/draped-in-magical-mist",
+     "album": "Draped In Magical Mist",
+     "album_url": "https://oldforsakenrealm.bandcamp.com/album/draped-in-magical-mist",
+     "duration": 932.924
+    },
+    {
+     "id": "7587959a3375",
+     "title": "In Luminous Dreams Of Yore",
+     "artist": "Old Forsaken Realm",
+     "thumbnail": "https://f4.bcbits.com/img/a0024915757_5.jpg",
+     "webpage_url": "https://oldforsakenrealm.bandcamp.com/track/in-luminous-dreams-of-yore",
+     "album": "Draped In Magical Mist",
+     "album_url": "https://oldforsakenrealm.bandcamp.com/album/draped-in-magical-mist",
+     "duration": 619.494
+    },
+    {
+     "id": "e2158957a21c",
+     "title": "Where Ivy Shrouds A Slumbering King",
+     "artist": "Old Forsaken Realm",
+     "thumbnail": "https://f4.bcbits.com/img/a0024915757_5.jpg",
+     "webpage_url": "https://oldforsakenrealm.bandcamp.com/track/where-ivy-shrouds-a-slumbering-king",
+     "album": "Draped In Magical Mist",
+     "album_url": "https://oldforsakenrealm.bandcamp.com/album/draped-in-magical-mist",
+     "duration": 561.675
+    },
+    {
+     "id": "5011ab8a5590",
+     "title": "Through Astral Gates To Ancestral Realms",
+     "artist": "Old Forsaken Realm",
+     "thumbnail": "https://f4.bcbits.com/img/a0024915757_5.jpg",
+     "webpage_url": "https://oldforsakenrealm.bandcamp.com/track/through-astral-gates-to-ancestral-realms",
+     "album": "Draped In Magical Mist",
+     "album_url": "https://oldforsakenrealm.bandcamp.com/album/draped-in-magical-mist",
+     "duration": 1074.63
+    }
+   ]
   }
  ]
 }
