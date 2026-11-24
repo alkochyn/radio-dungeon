@@ -89423,6 +89423,52 @@
      "duration": 616.213
     }
    ]
+  },
+  {
+   "message_id": 1219,
+   "message_date": "2026-11-24T19:25:42+00:00",
+   "tracks": [
+    {
+     "id": "3dc22e88bda4",
+     "title": "Чертог Чернобога",
+     "artist": "Звероморье",
+     "thumbnail": "https://f4.bcbits.com/img/a0909661559_5.jpg",
+     "webpage_url": "https://vagenburgofarteriesblackforestprodaction.bandcamp.com/track/--158",
+     "album": "Северный человек",
+     "album_url": "https://vagenburgofarteriesblackforestprodaction.bandcamp.com/album/--28",
+     "duration": 260.049
+    },
+    {
+     "id": "b89ddf859bbf",
+     "title": "Северный человек",
+     "artist": "Звероморье",
+     "thumbnail": "https://f4.bcbits.com/img/a0909661559_5.jpg",
+     "webpage_url": "https://vagenburgofarteriesblackforestprodaction.bandcamp.com/track/--160",
+     "album": "Северный человек",
+     "album_url": "https://vagenburgofarteriesblackforestprodaction.bandcamp.com/album/--28",
+     "duration": 376.033
+    },
+    {
+     "id": "ed2cbee2c31f",
+     "title": "Плоть тупилака",
+     "artist": "Звероморье",
+     "thumbnail": "https://f4.bcbits.com/img/a0909661559_5.jpg",
+     "webpage_url": "https://vagenburgofarteriesblackforestprodaction.bandcamp.com/track/--161",
+     "album": "Северный человек",
+     "album_url": "https://vagenburgofarteriesblackforestprodaction.bandcamp.com/album/--28",
+     "duration": 270.028
+    },
+    {
+     "id": "c3acc7422b34",
+     "title": "Термоядерный скотомогильник",
+     "artist": "Звероморье",
+     "thumbnail": "https://f4.bcbits.com/img/a0909661559_5.jpg",
+     "webpage_url": "https://vagenburgofarteriesblackforestprodaction.bandcamp.com/track/--162",
+     "album": "Северный человек",
+     "album_url": "https://vagenburgofarteriesblackforestprodaction.bandcamp.com/album/--28",
+     "duration": 300.042
+    }
+   ]
   }
  ]
 }
