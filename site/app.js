@@ -379,9 +379,10 @@ function postOfTrack(trackId) {
 function enterAlbumView() {
   const post = current ? postOfTrack(current.trackId) : null;
   if (!post) return;
-  orderBefore = { precious: preciousMode, radio: radioMode };
+  orderBefore = { precious: preciousMode, radio: radioMode, shared: sharedMode };
   stopRadio();
   preciousMode = false;
+  sharedMode = false;
   albumMode = true;
   albumPostId = post.message_id;
   shownCount = PAGE_SIZE;
@@ -394,11 +395,12 @@ function enterAlbumView() {
 
 function leaveAlbumView() {
   if (!albumMode) return;
-  const back = orderBefore || { precious: false, radio: false };
+  const back = orderBefore || { precious: false, radio: false, shared: false };
   albumMode = false;
   albumPostId = null;
   orderBefore = null;
   preciousMode = back.precious;
+  sharedMode = back.shared;
   // The order goes back to what it was. Not a fresh press of the disco: the colour
   // belongs to the evening, not to this trip out of it.
   radioMode = back.radio;
@@ -559,6 +561,7 @@ function computeActiveList() {
     const post = albumPost();
     return post ? [post] : [];
   }
+  if (sharedMode) return [sharedPost()];
   if (preciousMode) return [preciousPost()];
 
   const list = posts.filter(matchesSearch);
@@ -625,6 +628,9 @@ function updatePreciousButton() {
 }
 
 function setPreciousMode(on) {
+  // Pressing the collection from inside a shared link leaves the link behind: these are
+  // two different lists, and the address bar should not claim otherwise.
+  if (sharedMode) forgetShareLink();
   preciousMode = on;
   shownCount = PAGE_SIZE;
   updatePreciousButton();
@@ -635,6 +641,165 @@ function setPreciousMode(on) {
 preciousBtn?.addEventListener("click", () => {
   tally("btn/precious");
   setPreciousMode(!preciousMode);
+});
+
+// --- a playlist that fits in a link -------------------------------------------------
+// Listeners asked to be able to pass a selection around, and the cheapest honest answer
+// is to put the selection itself into the url: the ids of the tracks and nothing else.
+// Nothing is stored on anybody's server, so there is no account to make, no playlist to
+// moderate, and no link that rots because someone deleted what it pointed at - and the
+// site stays the pile of static files it is.
+//
+// A track id is twelve hex characters, which is six bytes once it stops pretending to
+// be text, so twenty of them ride in about 160 characters of base64 and the whole
+// collection of a heavy listener still fits in a chat message. The ids are content
+// hashes rather than positions in the file, which is what lets a link outlive the
+// rebuild that reshuffles posts.json every two hours.
+//
+// What arrives is shown the way "Моя прелесть" is - as one synthetic post - so the feed,
+// the queue, next/prev and the disco all work on it without knowing this view exists.
+
+const SHARE_PARAM = "p";
+const SHARE_MAX = 200; // ~1600 characters of url; past that chat clients start to cut
+
+function packIds(ids) {
+  let raw = "";
+  let packed = 0;
+  for (const id of ids) {
+    if (packed >= SHARE_MAX) break; // the rest would be cut off in transit anyway
+    if (!/^[0-9a-f]{12}$/.test(id)) continue; // not an id this player made
+    for (let b = 0; b < 12; b += 2) {
+      raw += String.fromCharCode(parseInt(id.slice(b, b + 2), 16));
+    }
+    packed++;
+  }
+  return btoa(raw).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function unpackIds(packed) {
+  const b64 = packed.replace(/-/g, "+").replace(/_/g, "/");
+  let raw = "";
+  try {
+    raw = atob(b64 + "=".repeat((4 - (b64.length % 4)) % 4));
+  } catch (e) {
+    return []; // a link a chat client wrapped or cut; handled as an empty selection
+  }
+  const ids = [];
+  for (let i = 0; i + 5 < raw.length; i += 6) {
+    let id = "";
+    for (let b = 0; b < 6; b++) {
+      id += raw.charCodeAt(i + b).toString(16).padStart(2, "0");
+    }
+    ids.push(id);
+  }
+  return ids;
+}
+
+let sharedMode = false;
+let sharedIds = []; // in the order they were shared, which is the order they play
+let sharedMissing = 0; // asked for by the link and no longer in the channel
+
+function shareUrl(ids) {
+  return `${location.origin}${location.pathname}#${SHARE_PARAM}=${packIds(ids)}`;
+}
+
+function readShareHash() {
+  const hash = location.hash.replace(/^#/, "");
+  if (!hash) return null;
+  const packed = new URLSearchParams(hash).get(SHARE_PARAM);
+  return packed ? unpackIds(packed) : null;
+}
+
+// Looked up rather than trusted: the link carries ids, and what a track is called and
+// where it streams from is whatever today's posts.json says.
+function sharedTracks() {
+  const out = [];
+  let missing = 0;
+  for (const id of sharedIds) {
+    const track = findTrack(id);
+    if (track) out.push(track);
+    else missing++;
+  }
+  sharedMissing = missing;
+  return out;
+}
+
+function sharedPost() {
+  return {
+    message_id: "__shared__",
+    message_date: null,
+    message_text: "",
+    telegram_url: null,
+    tracks: sharedTracks(),
+  };
+}
+
+// 1 трек, 2 трека, 5 треков.
+function countWord(n, one, few, many) {
+  const tens = n % 100;
+  const units = n % 10;
+  let word = many;
+  if (units === 1 && tens !== 11) word = one;
+  else if (units >= 2 && units <= 4 && (tens < 12 || tens > 14)) word = few;
+  return `${n} ${word}`;
+}
+
+// Opened from somebody's link. Nothing starts playing on arrival - a page that nobody
+// has pressed anything on is not allowed to make noise, and would not deserve to - but
+// from the first press this list is what the player walks.
+function enterSharedMode(ids) {
+  sharedIds = ids;
+  sharedMode = true;
+  preciousMode = false;
+  albumMode = false;
+  albumPostId = null;
+  shownCount = PAGE_SIZE;
+  updatePreciousButton();
+  renderPostList();
+  window.scrollTo({ top: 0 });
+}
+
+// The link leaves the address bar together with the view: otherwise a reload drops the
+// listener back into somebody else's selection instead of the channel.
+function forgetShareLink() {
+  sharedMode = false;
+  sharedIds = [];
+  sharedMissing = 0;
+  try {
+    // `window.`, and not by accident: this file has a `history` of its own a few
+    // hundred lines up - the list of what has been played - and it shadows the
+    // browser's for every line below it.
+    window.history.replaceState(null, "", location.pathname + location.search);
+  } catch (e) {
+    // a browser that refuses, or a page opened from a file: the view is gone anyway,
+    // which was most of what was asked for
+  }
+}
+
+function leaveSharedMode() {
+  forgetShareLink();
+  shownCount = PAGE_SIZE;
+  updatePreciousButton();
+  renderPostList();
+  window.scrollTo({ top: 0 });
+}
+
+// Keeping it. The likes are the only collection this player has, so a selection worth
+// keeping becomes likes - from where it is the listener's own, and shareable in turn.
+function takeShared() {
+  sharedTracks().forEach((t) => likedIds.add(t.id));
+  saveUserData();
+  updatePreciousButton();
+  updateNowLike();
+  renderPostList();
+}
+
+// A link pasted into the bar of a tab that is already open, and the back button out of
+// one: neither reloads the page, so neither reaches init().
+window.addEventListener("hashchange", () => {
+  const ids = readShareHash();
+  if (ids) enterSharedMode(ids);
+  else if (sharedMode) leaveSharedMode();
 });
 
 function flattenActive(active) {
@@ -1920,6 +2085,10 @@ function stopRadio() {
 // --- rendering ------------------------------------------------------------------
 
 function renderPostList() {
+  if (sharedMode) {
+    renderSharedList();
+    return;
+  }
   if (preciousMode) {
     renderPreciousList();
     return;
@@ -1956,6 +2125,37 @@ function renderPreciousList() {
   renderViewBar();
 }
 
+// Same shape as the collection above - one flat list of rows - because a shared
+// selection has no posts in it: it is tracks picked out of however many.
+function renderSharedList() {
+  const tracks = sharedTracks();
+  postListEl.innerHTML = "";
+
+  // A stranger arriving by link has no idea what they are looking at, so the list says
+  // what it is. It also owns up to what the link could not deliver: a selection quietly
+  // three tracks short reads as a player that lost them.
+  const note = document.createElement("div");
+  note.className = "shared-note";
+  if (!tracks.length) {
+    note.textContent = sharedIds.length
+      ? "Треков из этой подборки больше нет в канале"
+      : "Ссылка повреждена — треков в ней не нашлось";
+  } else {
+    note.textContent = `Чья-то подборка — ${countWord(tracks.length, "трек", "трека", "треков")}`;
+    if (sharedMissing) {
+      const gone = document.createElement("div");
+      gone.className = "shared-note-gone";
+      gone.textContent = `${countWord(sharedMissing, "трек", "трека", "треков")} из неё больше нет в канале`;
+      note.appendChild(gone);
+    }
+  }
+  postListEl.appendChild(note);
+
+  const post = sharedPost();
+  tracks.forEach((track) => postListEl.appendChild(renderTrackRow(post, track, null)));
+  renderViewBar();
+}
+
 // --- endless feed -------------------------------------------------------------------
 // Paging through fifty pages to reach an album is not how anyone browses a channel, so
 // the list just keeps going. Two rules keep it from bogging down: new posts are appended
@@ -1979,9 +2179,9 @@ function backButton(onClick, title) {
   return back;
 }
 
-// One control at a time in this row: inside an album or the collection the way out is
-// what matters, and the search box - which only ever searches the channel - would be
-// offering to leave by a different door.
+// The way out of a narrowed view, and at most one thing to do with the view you are in.
+// The search box is gone from all of them: it only ever searches the channel, so here it
+// would be offering to leave by a different door.
 function renderViewBar() {
   if (!listInfoEl) return;
   listInfoEl.textContent = "";
@@ -1989,10 +2189,102 @@ function renderViewBar() {
     listInfoEl.appendChild(
       backButton(leaveAlbumView, "Вернуться и отдать очередь обратно каналу"),
     );
+  } else if (sharedMode) {
+    listInfoEl.appendChild(backButton(leaveSharedMode, "Вернуться в канал"));
+    if (sharedIds.length) listInfoEl.appendChild(takeButton());
   } else if (preciousMode) {
     listInfoEl.appendChild(backButton(() => setPreciousMode(false), "Вернуться в канал"));
+    if (likedIds.size) listInfoEl.appendChild(shareButton());
   }
-  if (searchWrapEl) searchWrapEl.hidden = albumMode || preciousMode;
+  if (searchWrapEl) searchWrapEl.hidden = albumMode || preciousMode || sharedMode;
+  // Two controls here and the collection button beside them is more than a 320px phone
+  // has room for, so the stylesheet is told how full this row is and takes the label off
+  // the gem. See #list-info.two-up in style.css.
+  listInfoEl.classList.toggle("two-up", listInfoEl.children.length > 1);
+}
+
+// The one place where a selection turns into a link, and it is in the collection and
+// nowhere else: what you liked is the only list this player keeps, so "поделиться" here
+// has an obvious subject and asks nobody to set anything up first.
+function shareButton() {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "view-act";
+  const idle = "Поделиться";
+  btn.textContent = idle;
+  btn.title = "Ссылка на эти треки — её можно кинуть кому угодно";
+  btn.addEventListener("click", () => {
+    tally("btn/share");
+    const ids = likedTracks().map((t) => t.id);
+    const url = shareUrl(ids);
+    // Said out loud, because a long collection goes into the link only as far as a chat
+    // message can carry it.
+    const cut = ids.length > SHARE_MAX ? ` — первые ${SHARE_MAX}` : "";
+    const say = (what) => {
+      btn.textContent = what + cut;
+      setTimeout(() => {
+        btn.textContent = idle;
+      }, 2500);
+    };
+    // On a phone this is the system share sheet, which puts the link straight into a
+    // chat - the whole point of the thing. On a desktop, where the same call opens a
+    // dialog nobody asked for, the clipboard is the shorter way.
+    const sheet =
+      navigator.canShare?.({ url }) && window.matchMedia("(pointer: coarse)").matches;
+    if (sheet) {
+      navigator.share({ url }).then(
+        () => say("Отправлено"),
+        () => copyShareLink(url, say),
+      );
+      return;
+    }
+    copyShareLink(url, say);
+  });
+  return btn;
+}
+
+function copyShareLink(url, say) {
+  const clipboard = navigator.clipboard;
+  if (clipboard && clipboard.writeText) {
+    clipboard.writeText(url).then(
+      () => say("Ссылка скопирована"),
+      () => showShareLink(url, say),
+    );
+    return;
+  }
+  showShareLink(url, say);
+}
+
+// The clipboard refused - no permission, or a page not served over https. The next best
+// thing is the link itself, selected, so it can be taken by hand.
+function showShareLink(url, say) {
+  const field = document.createElement("input");
+  field.className = "share-link";
+  field.readOnly = true;
+  field.value = url;
+  postListEl.prepend(field);
+  field.focus();
+  field.select();
+  say("Скопируйте сами");
+}
+
+// What a shared selection is for, once you have heard it.
+function takeButton() {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "view-act";
+  const tracks = sharedTracks();
+  const already = tracks.length > 0 && tracks.every((t) => likedIds.has(t.id));
+  btn.textContent = already ? "Уже в прелести" : "Забрать себе";
+  btn.disabled = already || !tracks.length;
+  btn.title = already
+    ? "Эти треки уже лежат в «Моей прелести»"
+    : "Добавить эти треки в «Мою прелесть»";
+  btn.addEventListener("click", () => {
+    tally("btn/shared-take");
+    takeShared();
+  });
+  return btn;
 }
 
 function appendMorePosts() {
@@ -2355,7 +2647,14 @@ async function refreshDataAndRetry(ref) {
 
   try {
     updatePreciousButton();
-    renderPostList();
+    // A link is what this visit is about; the channel is what every other one is.
+    const shared = readShareHash();
+    if (shared) {
+      tallyOnce("open/shared");
+      enterSharedMode(shared);
+    } else {
+      renderPostList();
+    }
   } catch (e) {
     console.error(e);
     showFailure(
@@ -2366,8 +2665,10 @@ async function refreshDataAndRetry(ref) {
 
   try {
     // After the list, because the track has to be found in it first - and last, because
-    // a place that cannot be found again is no reason for the page not to open.
-    takeUpResumePoint();
+    // a place that cannot be found again is no reason for the page not to open. Arriving
+    // by somebody else's link is the one case where it is not wanted: the selection is
+    // what the visit is for, not the track this browser left off on.
+    if (!sharedMode) takeUpResumePoint();
   } catch (e) {
     console.error(e);
   }

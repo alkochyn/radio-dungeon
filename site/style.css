@@ -674,11 +674,23 @@ audio { display: none; }
   outline: none;
   border-color: hsl(var(--h) 45% 40%);
 }
+/* A narrow phone, and the row carrying the way out plus one thing to do with the view:
+   the gem keeps its icon and its count and gives up its name, which is the only word
+   here that the picture already says. */
+@media (max-width: 420px) {
+  #list-info.two-up ~ #precious-btn span:not(#precious-count) { display: none; }
+}
+
 /* Empty it still cost the row a gap, which the search box could have had. */
 #list-info:empty { display: none; }
 #list-info {
   flex: none;
   min-width: 0;
+  /* Two controls at most - the way out, and the one thing to do with the view you are
+     in - and they must not touch. */
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   color: #6e6e7c;
   font-size: 0.78rem;
 }
@@ -755,6 +767,28 @@ audio { display: none; }
 .track-row .cats .chip { padding: 0.1rem 0.5rem; font-size: 0.72rem; }
 
 .empty-hint { color: #888; padding: 2rem 0; text-align: center; }
+
+/* The one line of signage a shared selection gets. It is not a post card: there is no
+   post behind it, and dressing it as one would promise a channel entry that is not
+   there. */
+.shared-note {
+  color: #8a8a99;
+  font-size: 0.85rem;
+  padding: 0.1rem 0 0.2rem;
+}
+.shared-note-gone { color: #6e6e7c; font-size: 0.8rem; margin-top: 0.15rem; }
+
+/* Shown only where the clipboard was refused, so the link can be taken by hand. */
+.share-link {
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  background: #15151c;
+  border: 1px solid #2e2e3a;
+  border-radius: 3px;
+  color: #dcdce6;
+  font: inherit;
+  font-size: 0.8rem;
+}
 
 /* Wide screens only: the player stays in reach while a long list scrolls. On a phone
    the same block is tall enough to eat half the screen, so it stays in the flow. */
@@ -1092,7 +1126,8 @@ audio { display: none; }
 /* --- back out of a narrowed view -------------------------------------------------
    Sits at the left of the row under the player, opposite the collection button. Same
    button for an album and for the collection: one way out, wherever you went in. */
-#view-back {
+#view-back,
+.view-act {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
@@ -1103,7 +1138,11 @@ audio { display: none; }
   color: #b9b9c6;
   font-size: 0.85rem;
 }
-#view-back:hover { background: #24242e; color: #eee; }
+#view-back:hover,
+.view-act:hover:not(:disabled) { background: #24242e; color: #eee; }
+/* A selection already kept: the button stays to say so rather than vanishing and
+   leaving the question of whether the press worked. */
+.view-act:disabled { color: #65657a; border-color: #26262f; }
 
 /* ==================================================================================
    Radio Dungeon — атмосфера (вариант 1a «Факел»)
