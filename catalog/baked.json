@@ -89469,6 +89469,52 @@
      "duration": 300.042
     }
    ]
+  },
+  {
+   "message_id": 1220,
+   "message_date": "2026-11-26T19:24:58+00:00",
+   "tracks": [
+    {
+     "id": "0c52f46cab68",
+     "title": "Exhalation of the aether",
+     "artist": "Necropolis",
+     "thumbnail": "https://f4.bcbits.com/img/a3589816694_5.jpg",
+     "webpage_url": "https://necropolis-siege.bandcamp.com/track/exhalation-of-the-aether-2",
+     "album": "Firmament",
+     "album_url": "https://necropolis-siege.bandcamp.com/album/firmament",
+     "duration": 242.571
+    },
+    {
+     "id": "94dbbe4077ee",
+     "title": "Wrought to ruin",
+     "artist": "Necropolis",
+     "thumbnail": "https://f4.bcbits.com/img/a3589816694_5.jpg",
+     "webpage_url": "https://necropolis-siege.bandcamp.com/track/wrought-to-ruin-2",
+     "album": "Firmament",
+     "album_url": "https://necropolis-siege.bandcamp.com/album/firmament",
+     "duration": 280.286
+    },
+    {
+     "id": "6b80a6192c06",
+     "title": "Sanctum",
+     "artist": "Necropolis",
+     "thumbnail": "https://f4.bcbits.com/img/a3589816694_5.jpg",
+     "webpage_url": "https://necropolis-siege.bandcamp.com/track/sanctum-2",
+     "album": "Firmament",
+     "album_url": "https://necropolis-siege.bandcamp.com/album/firmament",
+     "duration": 332.531
+    },
+    {
+     "id": "3ec314618732",
+     "title": "Fate of the unforgiven",
+     "artist": "Necropolis",
+     "thumbnail": "https://f4.bcbits.com/img/a3589816694_5.jpg",
+     "webpage_url": "https://necropolis-siege.bandcamp.com/track/fate-of-the-unforgiven-2",
+     "album": "Firmament",
+     "album_url": "https://necropolis-siege.bandcamp.com/album/firmament",
+     "duration": 288.429
+    }
+   ]
   }
  ]
 }
